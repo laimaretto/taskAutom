@@ -11,8 +11,10 @@ These libraries have been tested under Ubuntu 20.04 and Python3.8.
 sudo pip3 install -r requirements.txt
 ```
 
+For Windows users, make sure you have Python and PIP installed.
+
 #### Edit `servers.yml`
-This file has configuration parameters for the Jump Host(s). Add as many as needed. First server is `0`, next one is `1` and so on, so forth. If more than one jump-host are declared, the connections will be load balance sequentially among them.
+This file has configuration parameters for the Jump Host(s). Add as many as needed. First server is `0`, next one is `1` and so on, so forth. If more than one jump-host is declared, the connections will be load balanced sequentially among them.
 
 ```yml
 0:
@@ -24,7 +26,7 @@ This file has configuration parameters for the Jump Host(s). Add as many as need
 ```
 
 #### Compile
-Compiling improves performance
+You can run `taskAutom` directly from the CLI using Python. However, compiling improves performance.
 
 ```bash
 python3 -m nuitka taskAutom.py
@@ -36,7 +38,7 @@ The program needs two inputs: a) CSV file with data and b) a plugin, which is no
 
 #### CSV
 
-The CSV file must have in its first column, the IP system of the routers to which `taskAutom` will connect to. The next columns, are the variables that will be used in the configuration template. The CSV must not include header.
+The CSV file must have in its first column, the IP system of the routers to which `taskAutom` will connect to. The next columns, are the variables that will be used in the configuration template. The CSV must not include a header.
 Example: this is a CSV for two different routers, including the data to modify their interfaces.
 
 ```csv
@@ -46,7 +48,7 @@ Example: this is a CSV for two different routers, including the data to modify t
 
 #### Plugin
 
-The plugin is a Python code which is fed with each row of the CSV at a time, in order to render a configuration file. It consist of a function called `construir_cliLine()` which accepts three arguments: `m` which is a counter, `datos` which is a row vector, and `mop`. `m` can be used when some code needs to be ran only once; `mop` is used when the configuration script needs to be verified before running.
+The plugin is a Python code which is fed with each row of the CSV at a time, in order to render a configuration script. It consists of a function called `construir_cliLine()` which accepts three arguments: `m` which is a counter, `datos` which is a row vector, and `mop`. `m` can be used when some code needs to be ran only once; `mop` is used when the configuration script needs to be verified before running.
 
 Example: use the previous data, to generate configuration scripts.
 
@@ -76,7 +78,7 @@ def construir_cliLine(m, datos, mop=None):
 
 #### Result
 
-If `taskAutom` was invoked with option `jobType=0` a text file with the rendered output, will be genereated.
+If `taskAutom` is invoked with option `jobType=0`, a text file with the rendered output, will be genereated.
 
 ```bash
 $ taskAutom -csv listExample.csv -py confExample.py -j 0
@@ -89,7 +91,7 @@ Router: router2, 10.0.0.2
 /configure router interface inter7 address 192.168.2.1
 ```
 
-Otherwise, if `taskAutom` was invoked with option `jobType=2`, it will connect to each and every router, and execute the commands.
+Otherwise, if `taskAutom` is invoked with option `jobType=2`, it will connect to each and every router, and execute the commands. User and password must be provided in this case.
 
 #### Configuration Options
 
