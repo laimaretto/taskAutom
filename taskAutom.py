@@ -933,7 +933,7 @@ class myConnection(threading.Thread):
 		def setScript(cronName, script):
 
 			cfg = ""
-			cfg = cfg + "script " + cronName + " owner nokiaAutom\nshutdown\n"
+			cfg = cfg + "script " + cronName + " owner taskAutom\nshutdown\n"
 			cfg = cfg + "location cf3:\\" + script + "\n"
 			cfg = cfg + "no shutdown\n"
 			cfg = cfg + "exit\n"
@@ -942,9 +942,9 @@ class myConnection(threading.Thread):
 		def action(cronName):
 
 			cfg = ""
-			cfg = cfg + "action " + cronName + " owner nokiaAutom\nshutdown\n"
+			cfg = cfg + "action " + cronName + " owner taskAutom\nshutdown\n"
 			cfg = cfg + "results cf3:\\resultTestCron.txt\n"
-			cfg = cfg + "script " + cronName + " owner nokiaAutom\n"
+			cfg = cfg + "script " + cronName + " owner taskAutom\n"
 			cfg = cfg + "no shutdown\n"
 			cfg = cfg + "exit\n"
 			return cfg
@@ -952,9 +952,9 @@ class myConnection(threading.Thread):
 		def policy(cronName):
 
 			cfg = ""
-			cfg = cfg + "script-policy " + cronName + " owner nokiaAutom\nshutdown\n"
+			cfg = cfg + "script-policy " + cronName + " owner taskAutom\nshutdown\n"
 			cfg = cfg + "results cf3:\\resultTestCron.txt\n"
-			cfg = cfg + "script " + cronName + " owner nokiaAutom\n"
+			cfg = cfg + "script " + cronName + " owner taskAutom\n"
 			cfg = cfg + "no shutdown\n"
 			cfg = cfg + "exit\n"			
 			return cfg
@@ -962,12 +962,12 @@ class myConnection(threading.Thread):
 		def schedule(timos, cronName, month, weekday, dayOfMonth, hour, minute):
 
 			cfg = ""
-			cfg = cfg + "schedule " + cronName + " owner nokiaAutom\nshutdown\n"
+			cfg = cfg + "schedule " + cronName + " owner taskAutom\nshutdown\n"
 
 			if timos > 7:
-				cfg = cfg + "script-policy " + cronName + " owner nokiaAutom\n"
+				cfg = cfg + "script-policy " + cronName + " owner taskAutom\n"
 			else:
-				cfg = cfg + "action " + cronName + " owner nokiaAutom\n"
+				cfg = cfg + "action " + cronName + " owner taskAutom\n"
 			
 			cfg = cfg + "type oneshot\n"
 			cfg = cfg + "day-of-month " + dayOfMonth + "\n"
@@ -1157,7 +1157,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-df' ,'--delayFactor', type=int, help='SSH delay factor. Default=1', default=1,)
 	parser1.add_argument('-tun','--sshTunnel',   type=int, help='Use SSH Tunnel to routers. Default=1', default=1, choices=[0,1])
 	parser1.add_argument('-ct', '--clientType',  type=str, help='Connection type. Default=tel', default='tel', choices=['tel','ssh'])
-	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2021 - laimaretto@gmail.com - Version: 7.4' )
+	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.4' )
 
 	args = parser1.parse_args()
 
