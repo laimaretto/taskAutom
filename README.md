@@ -90,3 +90,42 @@ Router: router2, 10.0.0.2
 ```
 
 Otherwise, if `taskAutom` was invoked with option `output_job=2`, it will connect to each and every router, and execute the commands.
+
+#### Configuration Options
+
+`taskAutom` can be configured through CLI as shown below.
+
+```bash
+$ python3 taskAutom.py -h
+usage: PROG [options]
+
+Task Automation Parameters.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -csv CSVFILE, --csvFile CSVFILE
+                        CSV File with parameters
+  -j {0,2}, --jobType {0,2}
+                        Type of job
+  -py PYFILE, --pyFile PYFILE
+                        PY Template File
+  -log LOGINFO, --logInfo LOGINFO
+                        Description for log folder
+  -jh JUMPHOSTS, --JumpHosts JUMPHOSTS
+                        JumpHosts file. Default=servers.yml
+  -crt CRONTIME [CRONTIME ...], --cronTime CRONTIME [CRONTIME ...]
+                        Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).
+  -u USERNAME, --username USERNAME
+                        Username
+  -th THREADS, --threads THREADS
+                        Number of threads. Default=1
+  -to TIMEOUT, --timeout TIMEOUT
+                        Telnet Timeout [sec]. Default=90
+  -df DELAYFACTOR, --delayFactor DELAYFACTOR
+                        SSH delay factor. Default=1
+  -tun {0,1}, --sshTunnel {0,1}
+                        Use SSH Tunnel to routers. Default=1
+  -ct {tel,ssh}, --clientType {tel,ssh}
+                        Connection type. Default=tel
+  -v, --version         Version
+```
