@@ -1,2 +1,92 @@
-# taskAutom
-simple automation tool
+# README #
+
+This idea was born because of the need for a simple tool in order to automate execution of simple configuration teamplates on Nokia SROS based routers. The idea was to have data on a CSV file and the configuration templates written in pure Python. Configuration scripts would be the result of these templates being rendered with the CSV data.
+
+## Setup ##
+
+#### System Libraries
+These libraries have been tested under Ubuntu 20.04 and Python3.8.
+
+```bash
+sudo pip3 install -r requirements.txt
+```
+
+#### Edit `servers.yml`
+This file has configuration parameters for the Jump Host(s). Add as many as needed. First server is `0`, next one is `1` and so on, so forth. If more than one jump-host are declared, the connections will be load balance sequentially among them.
+
+```yml
+0:
+    name: 'myServer'
+    user: 'myUser'
+    password: 'myPass'
+    ip: 'a.b.c.d'
+    port: 22
+```
+
+#### Compile
+Compiling improves performance
+
+```bash
+python3 -m nuitka taskAutom.py
+```
+
+## Usage ##
+
+The program needs two inputs: a) CSV file with data and b) a plugin, which is nothing but a configuration template.
+
+#### CSV
+
+The CSV file must have in its first column, the IP system of the routers to which `taskAutom` will connect to. The next columns, are the variables that will be used in the configuration template. The CSV must not include header.
+Example: this is a CSV for two different routers, including the data to modify their interfaces.
+
+```csv
+10.0.0.1,router1,1/1/1,inter1,192.168.0.1
+10.0.0.2,router2,1/3/5,inter7,192.168.2.1
+```
+
+#### Plugin
+
+The plugin is a Python code which is fed with each row of the CSV at a time, in order to render a configuration file. It consist of a function called `construir_cliLine()` which accepts three arguments: `m` which is a counter, `datos` which is a row vector, and `mop`. `m` can be used when some code needs to be ran only once; `mop` is used when the configuration script needs to be verified before running.
+
+Example: use the previous data, to generate configuration scripts.
+
+```python
+def construir_cliLine(m, datos, mop=None):
+
+	ipSystem   = datos[0]
+	router     = datos[1]
+	port       = datos[2]
+	intName    = datos[3]
+	address    = datos[4]
+
+	cfg        = ""
+	title      = ""
+
+	if mop:
+		title = "\nRouter: " + router + ", " + ipSystem + "\n"
+
+	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
+	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
+
+	if mop:
+		return title + cfg
+	else:
+		return cfg
+```
+
+#### Result
+
+If `taskAutom` was invoked with option `output_job=0` a text file with the rendered output, will be genereated.
+
+```bash
+$ taskAutom -csv listExample.csv -py confExample.py -j 0
+Router: router1, 10.0.0.1
+/configure router interface inter1 port 1/1/1
+/configure router interface inter1 address 192.168.0.1
+
+Router: router2, 10.0.0.2
+/configure router interface inter7 port 1/3/5
+/configure router interface inter7 address 192.168.2.1
+```
+
+Otherwise, if `taskAutom` was invoked with option `output_job=2`, it will connect to each and every router, and execute the commands.
