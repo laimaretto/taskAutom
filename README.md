@@ -11,7 +11,7 @@ These libraries have been tested under Ubuntu 20.04 and Python3.8.
 sudo pip3 install -r requirements.txt
 ```
 
-For Windows users, make sure you have Python and PIP installed.
+For Windows users, make sure you have Python and [PIP](https://pip.pypa.io/en/stable/installing/) installed.
 
 #### Edit `servers.yml`
 This file has configuration parameters for the Jump Host(s). Add as many as needed. First server is `0`, next one is `1` and so on, so forth. If more than one jump-host is declared, the connections will be load balanced sequentially among them.
