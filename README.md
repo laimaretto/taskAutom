@@ -76,7 +76,7 @@ def construir_cliLine(m, datos, mop=None):
 
 #### Result
 
-If `taskAutom` was invoked with option `output_job=0` a text file with the rendered output, will be genereated.
+If `taskAutom` was invoked with option `jobType=0` a text file with the rendered output, will be genereated.
 
 ```bash
 $ taskAutom -csv listExample.csv -py confExample.py -j 0
@@ -89,7 +89,7 @@ Router: router2, 10.0.0.2
 /configure router interface inter7 address 192.168.2.1
 ```
 
-Otherwise, if `taskAutom` was invoked with option `output_job=2`, it will connect to each and every router, and execute the commands.
+Otherwise, if `taskAutom` was invoked with option `jobType=2`, it will connect to each and every router, and execute the commands.
 
 #### Configuration Options
 
