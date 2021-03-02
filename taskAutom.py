@@ -1084,7 +1084,8 @@ def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser
 			quit()
 		else:
 			os.makedirs(DIRECTORY_LOGS)
-			os.mknod(ALU_FILE_OUT_CSV)
+			open(ALU_FILE_OUT_CSV,'w').close()
+			#os.mknod(ALU_FILE_OUT_CSV)
 
 		# VPN Access
 		ROUTER_USER1[0] = VpnUser
