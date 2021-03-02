@@ -31,6 +31,7 @@ You can run `taskAutom` directly from the CLI using Python. However, compiling i
 ```bash
 python3 -m nuitka taskAutom.py
 ```
+Compiling has been tested succesfully under Ubuntu. Don't know if this is directly supported under Windows. If it fails, let me know. Nevertheless, as mentioned, you can run `taskAutom` directly from the CLI using Python
 
 ## Usage ##
 
