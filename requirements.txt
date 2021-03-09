@@ -4,3 +4,4 @@ netmiko==3.3.2
 scp==0.13.3
 pandas==1.1.5
 nuitka==0.6.10
+pyyaml==5.3.1

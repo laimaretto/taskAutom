@@ -252,7 +252,6 @@ def verifyCronTime(cronTime):
 
 	return cronTime
 
-
 def verifyServers(SERVERS):
 	"""We verify the SERVERS dictionary before moving on.
 
@@ -1182,7 +1181,7 @@ if __name__ == '__main__':
 
 	try:
 		with open(args.JumpHosts,'r') as f:
-			SERVERS = yaml.load(f)
+			SERVERS = yaml.load(f, Loader=yaml.FullLoader)
 	except:
 		print("Missing " + args.JumpHosts + " file. Quitting..")
 		quit()

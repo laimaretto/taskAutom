@@ -1,6 +1,6 @@
 # README #
 
-This idea was born because of the need for a simple tool in order to automate execution of simple configuration teamplates on Nokia SROS based routers. The idea was to have data on a CSV file and the configuration templates written in pure Python. Configuration scripts would be the result of these templates being rendered with the CSV data.
+This idea was born because of a need for a simple tool in order to automate execution of simple configuration teamplates on Nokia SROS based routers. The idea was to have data on a CSV file and the configuration templates written in pure Python. Configuration scripts would be the result of these templates being rendered with the CSV data.
 
 ## Setup ##
 
@@ -12,7 +12,6 @@ sudo pip3 install -r requirements.txt
 ```
 
 For Windows users, make sure you have Python and [PIP](https://pip.pypa.io/en/stable/installing/) installed.
-Also, for Windows users, install the YML library: `pip install pyyml`
 
 #### Edit `servers.yml`
 This file has configuration parameters for the Jump Host(s). Add as many as needed. First server is `0`, next one is `1` and so on, so forth. If more than one jump-host is declared, the connections will be load balanced sequentially among them.
@@ -44,8 +43,8 @@ The CSV file must have in its first column, the IP system of the routers to whic
 Example: this is a CSV for two different routers, including the data to modify their interfaces.
 
 ```csv
-10.0.0.1,router1,1/1/1,inter1,192.168.0.1
-10.0.0.2,router2,1/3/5,inter7,192.168.2.1
+10.0.0.1,router1,1/1/1,inter1,192.168.0.1/30
+10.0.0.2,router2,1/3/5,inter7,192.168.2.1/30
 ```
 
 #### Plugin
