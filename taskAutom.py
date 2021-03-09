@@ -48,7 +48,8 @@ ROUTER_FTP_PORT          = 21
 ROUTER_USER1 			 = [None,None]
 ROUTER_USER2 			 = ["extraUser1","extraPassword1"]
 ROUTER_USER3 			 = ["extraUser2","extraPassword2"]
-ROUTER_USER  			 = [ROUTER_USER1,ROUTER_USER2,ROUTER_USER3]
+#ROUTER_USER  			 = [ROUTER_USER1,ROUTER_USER2,ROUTER_USER3]
+ROUTER_USER  			 = [ROUTER_USER1]
 
 # --- Timers
 ALU_TIME_LOGIN           = 5
