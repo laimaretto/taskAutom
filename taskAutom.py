@@ -279,21 +279,23 @@ def verifyServers(SERVERS):
 
 	return True	
 
-def renderMop(job0_name, plugin):
+def renderMop(aluCliLineJob0, aluConfigFileModule):
 	"""[Generates a MOP based on the CSV and plugin information]
 
 	Args:
-		job0_name ([file]): [Text File with scripts]
-		plugin    ([str]):  [The plugin for this MOP]
+		aluCliLineJob0 ([file]): [configLines]
+		aluConfigFileModule ([str]):  [The plugin for this MOP]
 
 	Returns:
 		None
 	"""
 
-	with open(job0_name,'r') as f:
-		config = f.read()
+	job0FileName = "job0_" + aluConfigFileModule + ".docx"
 
-	config = config.split('\n')
+	#with open(job0_name,'r') as f:
+	#	config = f.read()
+
+	config = aluCliLineJob0.split('\n')
 
 	myDoc = docx.Document()
 	myStyles = myDoc.styles  
@@ -303,14 +305,15 @@ def renderMop(job0_name, plugin):
 	styleConsole.font.size = Pt(10)
 	styleConsole.paragraph_format.line_spacing = .1
 
-	myDoc.add_heading('MOP for ' + plugin, 0)
+	myDoc.add_heading('MOP for ' + aluConfigFileModule, 0)
 
 	for i,row in enumerate(config):
 
 		if i == 0:
 			myDoc.add_heading('Configuraciones',1)
 
-		if 'H2' in row[:2]:
+		if 'H2' in row.split(":")[0]:
+			row = ''.join(row.split(":")[1:])
 			subtitle = myDoc.add_paragraph(row)
 			subtitle.style = myDoc.styles['Heading 2']
 			subtitle.paragraph_format.line_spacing = 2
@@ -319,10 +322,7 @@ def renderMop(job0_name, plugin):
 			configText = myDoc.add_paragraph(row)
 			configText.style = myDoc.styles['Console']
 
-	myDoc.save('out.docx')
-
-
-
+	myDoc.save(job0FileName)
 
 ###
 
@@ -1181,10 +1181,12 @@ def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser
 
 	elif outputJob == 0:
 
-		with open("job0_" + aluConfigFileModule + ".cfg", "w") as text_file:
-			text_file.write(aluCliLineJob0)
+		#job0FileName = "job0_" + aluConfigFileModule
 
-		print(aluCliLineJob0)
+		#with open(job0FileName + ".cfg", "w") as text_file:
+		#	text_file.write(aluCliLineJob0)
+
+		renderMop(aluCliLineJob0, aluConfigFileModule)
 
 		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor)
 
