@@ -14,6 +14,9 @@ from sshtunnel import SSHTunnelForwarder
 from netmiko import ConnectHandler
 from scp import SCPClient
 import pandas as pd
+import docx
+from docx.enum.style import WD_STYLE_TYPE 
+from docx.shared import Pt
 
 import yaml
 import sys
@@ -275,6 +278,51 @@ def verifyServers(SERVERS):
 				return False				
 
 	return True	
+
+def renderMop(job0_name, plugin):
+	"""[Generates a MOP based on the CSV and plugin information]
+
+	Args:
+		job0_name ([file]): [Text File with scripts]
+		plugin    ([str]):  [The plugin for this MOP]
+
+	Returns:
+		None
+	"""
+
+	with open(job0_name,'r') as f:
+		config = f.read()
+
+	config = config.split('\n')
+
+	myDoc = docx.Document()
+	myStyles = myDoc.styles  
+
+	styleConsole = myStyles.add_style('Console', WD_STYLE_TYPE.PARAGRAPH)
+	styleConsole.font.name = 'Courier'
+	styleConsole.font.size = Pt(10)
+	styleConsole.paragraph_format.line_spacing = .1
+
+	myDoc.add_heading('MOP for ' + plugin, 0)
+
+	for i,row in enumerate(config):
+
+		if i == 0:
+			myDoc.add_heading('Configuraciones',1)
+
+		if 'H2' in row[:2]:
+			subtitle = myDoc.add_paragraph(row)
+			subtitle.style = myDoc.styles['Heading 2']
+			subtitle.paragraph_format.line_spacing = 2
+
+		else:
+			configText = myDoc.add_paragraph(row)
+			configText.style = myDoc.styles['Console']
+
+	myDoc.save('out.docx')
+
+
+
 
 ###
 
