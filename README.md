@@ -79,7 +79,7 @@ def construir_cliLine(m, datos, mop=None):
 		return cfg
 ```
 
-## MOP
+##### MOP
 
 When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `H2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information.
 
