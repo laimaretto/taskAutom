@@ -25,6 +25,8 @@ This file has configuration parameters for the Jump Host(s). Add as many as need
     port: 22
 ```
 
+You can comment out some servers, if needed.
+
 #### Compile
 You can run `taskAutom` directly from the CLI using Python. However, compiling improves performance.
 
@@ -66,7 +68,7 @@ def construir_cliLine(m, datos, mop=None):
 	title      = ""
 
 	if mop:
-		title = "\nRouter: " + router + ", " + ipSystem + "\n"
+		title = "\nH2:Router: " + router + ", " + ipSystem + "\n"
 
 	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
 	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
@@ -76,6 +78,10 @@ def construir_cliLine(m, datos, mop=None):
 	else:
 		return cfg
 ```
+
+## MOP
+
+When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `H2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information.
 
 #### Result
 
