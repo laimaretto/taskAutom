@@ -14,8 +14,10 @@ from sshtunnel import SSHTunnelForwarder
 from netmiko import ConnectHandler
 from scp import SCPClient
 import pandas as pd
+
 import docx
 from docx.enum.style import WD_STYLE_TYPE 
+from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 import yaml
@@ -367,8 +369,13 @@ def renderMop(aluCliLineJob0, aluConfigFileModule):
 
 	styleConsole = myStyles.add_style('Console', WD_STYLE_TYPE.PARAGRAPH)
 	styleConsole.font.name = 'Courier'
-	styleConsole.font.size = Pt(10)
-	styleConsole.paragraph_format.line_spacing = .1
+	styleConsole.font.size = Pt(9)
+	styleConsole.paragraph_format.keep_together = True
+
+	styleConsole.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+	#styleConsole.paragraph_format.line_spacing = Pt(10)
+	#styleConsole.paragraph_format.line_spacing = .2
+	styleConsole.paragraph_format.space_after = Pt(2)
 
 	myDoc.add_heading('MOP for ' + aluConfigFileModule, 0)
 
@@ -381,7 +388,7 @@ def renderMop(aluCliLineJob0, aluConfigFileModule):
 			row = ''.join(row.split(":")[1:])
 			subtitle = myDoc.add_paragraph(row)
 			subtitle.style = myDoc.styles['Heading 2']
-			subtitle.paragraph_format.line_spacing = 2
+			subtitle.paragraph_format.line_spacing = 1.5
 
 		else:
 			configText = myDoc.add_paragraph(row)
