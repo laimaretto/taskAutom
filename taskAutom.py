@@ -390,6 +390,12 @@ def renderMop(aluCliLineJob0, aluConfigFileModule):
 			subtitle.style = myDoc.styles['Heading 2']
 			subtitle.paragraph_format.line_spacing = 1.5
 
+		elif 'H3' in row.split(":")[0]:
+			row = ''.join(row.split(":")[1:])
+			subtitle = myDoc.add_paragraph(row)
+			subtitle.style = myDoc.styles['Heading 3']
+			subtitle.paragraph_format.line_spacing = 1.5
+
 		else:
 			configText = myDoc.add_paragraph(row)
 			configText.style = myDoc.styles['Console']
