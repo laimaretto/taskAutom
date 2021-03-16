@@ -15,6 +15,11 @@ from netmiko import ConnectHandler
 from scp import SCPClient
 import pandas as pd
 
+import docx
+from docx.enum.style import WD_STYLE_TYPE 
+from docx.enum.text import WD_LINE_SPACING
+from docx.shared import Pt
+
 import yaml
 import sys
 import telnetlib
@@ -89,8 +94,12 @@ def fncPrintResults(outputJob, ALU_TELNET_READ_TIMEOUT, useSSHTunnel, clientType
 	print("\n------ * ------")
 	print("Template File:              " + aluConfigFileModule + ".py")
 	print("CSV File:                   " + aluFileCsv)
+	print("MOP filename                " + "job0_" + aluConfigFileModule + ".docx\n")
 	print("Total Routers:              " + str(len(routers)))
-	print("Use SSH tunnel:             " + str(useSSHTunnel) )
+	if useSSHTunnel == 1:
+		print("Use SSH tunnel:             " + str(useSSHTunnel) +" ("+ str(len(SERVERS)) +")" )
+	else:
+		print("Use SSH tunnel:             " + str(useSSHTunnel) )
 	print("Client Type:                " + str(clientType))
 	print("Total Threads:              " + str(progNumThreads))
 	print("Telnet Timeout:             " + str(ALU_TELNET_READ_TIMEOUT) + "s")
@@ -252,29 +261,149 @@ def verifyCronTime(cronTime):
 
 	return cronTime
 
-def verifyServers(SERVERS):
+def verifyServers(JumpHosts):
 	"""We verify the SERVERS dictionary before moving on.
 
 	Args:
-		SERVERS ([dict]): [Dictoinary with server's information]
+		SERVERS ([str]): [Name of the file containing servers information in YML format.]
 
 	Returns:
-		[bool]: [True or False]
+		[dict]: [Dictionary with servers information]
 	"""
+
+	try:
+		with open(JumpHosts,'r') as f:
+			servers = yaml.load(f, Loader=yaml.FullLoader)
+	except:
+		print("Missing " + JumpHosts + " file. Quitting..")
+		quit()
+
 	fields = ['name','user','password','ip','port']
-	for k in SERVERS.keys():
+	for k in servers.keys():
 		for f in fields:
-			if f in SERVERS[k].keys():
-				if not SERVERS[k][f]:
+			if f in servers[k].keys():
+				if not servers[k][f]:
 					print('Missing value for field "' + str(f) + '" in server "' + str(k) + '". Quitting...')
 					quit()
-					return False
 			else:
 				print('Missing field "' + str(f) + '" in server "' + str(k) + '". Quitting...')
 				quit()
-				return False				
 
-	return True	
+	# If before checking is ok, we create a new dictionary with correlative keys for those values...
+	newServers = {}
+	for k,val in enumerate(servers.values()):
+		newServers[k] = val
+
+	return newServers	
+
+def verifyCsv(aluFileCsv):
+	"""[Verify CSV file]
+
+	Args:
+		aluFileCsv ([str]): [Name of CSV file]
+
+	Returns:
+		[list]: [List of Routers]
+	"""
+
+	try:
+		if aluFileCsv.split(".")[-1] == "csv":
+			iFile 		= open(aluFileCsv,"r")
+			csvFile 	= csv.reader(iFile, delimiter=",", quotechar="|")
+			routers 	= list(csvFile)
+			iFile.close()
+		else:
+			print("Missing CSV file. Verify extension of the file to be '.csv'. Quitting...")
+			quit()
+	except:
+		print("No CSV file found. Quitting ...")
+		quit()
+
+	return routers
+
+def verifyPlugin(aluConfigFileModule):
+	"""[Verifies the plugin template]
+
+	Args:
+		aluConfigFileModule ([str]): [Name of config template]
+
+	Returns:
+		[module]: [The module]
+	"""
+
+	try:
+		if aluConfigFileModule.split(".")[-1] == "py":
+			aluConfigFileModule = aluConfigFileModule.split(".")[0]
+			#exec ("from " + aluConfigFileModule + " import construir_cliLine")
+			mod = importlib.import_module(aluConfigFileModule)
+			print(mod)
+		else:
+			print("Missing config file. Verify extension of the file to be '.py'. Quitting...")
+			quit()
+	except:
+		print("No configFile found. Quitting ...")
+		quit()
+
+	return mod
+
+def renderMop(aluCliLineJob0, aluConfigFileModule):
+	"""[Generates a MOP based on the CSV and plugin information]
+
+	Args:
+		aluCliLineJob0 ([file]): [configLines]
+		aluConfigFileModule ([str]):  [The plugin for this MOP]
+
+	Returns:
+		None
+	"""
+
+	job0FileName = "job0_" + aluConfigFileModule + ".docx"
+
+	#with open(job0_name,'r') as f:
+	#	config = f.read()
+
+	config = aluCliLineJob0.split('\n')
+	config = [x for x in config if len(x) > 0]
+
+	myDoc = docx.Document()
+	myStyles = myDoc.styles  
+
+	styleConsole = myStyles.add_style('Console', WD_STYLE_TYPE.PARAGRAPH)
+	styleConsole.font.name = 'Courier'
+	styleConsole.font.size = Pt(9)
+	styleConsole.paragraph_format.keep_together = True
+
+	styleConsole.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+	#styleConsole.paragraph_format.line_spacing = Pt(10)
+	#styleConsole.paragraph_format.line_spacing = .2
+	styleConsole.paragraph_format.space_after = Pt(2)
+
+	myDoc.add_heading('MOP for ' + aluConfigFileModule, 0)
+
+	for i,row in enumerate(config):
+
+		if i == 0:
+			myDoc.add_heading('Configuraciones',1)
+
+		if 'H2' in row.split(":")[0]:
+			row = ''.join(row.split(":")[1:])
+			subtitle = myDoc.add_paragraph(row)
+			subtitle.style = myDoc.styles['Heading 2']
+			subtitle.paragraph_format.line_spacing = 1.5
+
+		elif 'H3' in row.split(":")[0]:
+			row = ''.join(row.split(":")[1:])
+			subtitle = myDoc.add_paragraph(row)
+			subtitle.style = myDoc.styles['Heading 3']
+			subtitle.paragraph_format.line_spacing = 1.5
+
+		else:
+			configText = myDoc.add_paragraph(row)
+			configText.style = myDoc.styles['Console']
+
+	print(aluCliLineJob0)
+
+	myDoc.save(job0FileName)
 
 ###
 
@@ -313,6 +442,7 @@ class myConnection(threading.Thread):
 			'sshServer':-1,
 			'conn2rtr':-1,
 			'delayFactor':delayFactor,
+			'telnetTimeout':ALU_TELNET_READ_TIMEOUT,
 		}
 
 		if ":" in self.connInfo['systemIP']:
@@ -325,8 +455,10 @@ class myConnection(threading.Thread):
 			elif self.connInfo['clientType'] == 'ssh':
 				self.connInfo['remotePort'] = ROUTER_SSH_PORT
 
-		#self.connInfo['serverKey'] = random.choice(list(SERVERS.keys())) 
-		self.connInfo['serverKey'] = self.num % len(SERVERS)
+		if self.connInfo['useSSHTunnel'] == 1:
+			self.connInfo['serverKey'] = self.num % len(SERVERS)
+		else:
+			self.connInfo['serverKey'] = -1
 
 		self.tDiff	    = 0
 		self.strConn    = "Con-" + str(self.num) + "| "
@@ -337,11 +469,7 @@ class myConnection(threading.Thread):
 
 	def run(self):
 
-		# Herein we define all kinds of things that we are able to do.
-		# This is controlled by the outputJob variable.
-
-		# We have the option of using an SSH tunnel towards control plane ...
-
+		# We update the connection info dictionary, after we've set up the connection towards the router...
 		self.connInfo.update(self.fncConnectToRouter(self.connInfo))
 
 		if self.connInfo['conn2rtr'] != -1 and self.connInfo['aluLogged'] == 1:
@@ -479,15 +607,24 @@ class myConnection(threading.Thread):
 				return hostname
 
 	def fncConnectToRouter(self, connInfo):
+		"""[We update the connection info dictionary, after we've set up the connection towards the router]
+
+		Args:
+			connInfo ([dict]): [Contains all conection related relevant information ]
+
+		Returns:
+			[dict]: [Updated connInfo dictionary]
+		"""
+
 		### Creates connection to router
 
 		if connInfo['useSSHTunnel'] == 1:
 
-			sshTelnet = self.fncSshServer(self.strConn, connInfo)
+			tunnel = self.fncSshServer(self.strConn, connInfo)
 
-			connInfo['controlPlaneAccess'] 	= sshTelnet[0]
-			connInfo['localPort'] 		   	= sshTelnet[1]
-			connInfo['sshServer']    		= sshTelnet[2]
+			connInfo['controlPlaneAccess'] 	= tunnel[0]
+			connInfo['localPort'] 		   	= tunnel[1]
+			connInfo['sshServer']    		= tunnel[2]
 			
 			fncPrintConsole(self.strConn + "Trying router " + IP_LOCALHOST + ":" + str(connInfo['localPort']) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
 
@@ -496,8 +633,9 @@ class myConnection(threading.Thread):
 			fncPrintConsole(self.strConn + "Using direct " + connInfo['clientType'] + " access: ")
 			fncPrintConsole(self.strConn + "Trying router " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']) )
 
+			connInfo['controlPlaneAccess'] 	= 1	
 			connInfo['localPort'] 			= ROUTER_TELNET_PORT
-			connInfo['controlPlaneAccess'] 	= 1			
+			connInfo['sshServer']    		= -1
 
 		if connInfo['controlPlaneAccess'] == 1:
 
@@ -861,6 +999,11 @@ class myConnection(threading.Thread):
 
 	def logData(self, connInfo, connId, tDiff, ALU_FILE_OUT_CSV, outRx, fRx, strConn, datos, LogInfo, LOG_TIME, plugin):
 
+		if connInfo['useSSHTunnel'] == 1:
+			serverName = SERVERS[connInfo['serverKey']]['name']
+		else:
+			serverName = '-1'
+
 		aluCsvLine = (
 			LOG_TIME + CH_COMA +
 			LogInfo + CH_COMA + 
@@ -871,7 +1014,7 @@ class myConnection(threading.Thread):
 			connInfo['aluLogReason'] + CH_COMA +
 			str(connId) + CH_COMA +
 			str(connInfo['localPort']) + CH_COMA +
-			SERVERS[connInfo['serverKey']]['name'] + CH_COMA +
+			serverName + CH_COMA +
 			connInfo['clientType'] + CH_COMA +
 			str(len(datos.split('\n'))) + CH_COMA +
 			str(len(outRx.split('\n'))) + CH_COMA +
@@ -1014,7 +1157,7 @@ class myConnection(threading.Thread):
 # Main Function                    #
 ####################################
 
-def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser='', VpnPass='', LogInfo='', useSSHTunnel=1, TelTimOut=90, cronTime=None, clientType='tel', delayFactor=1):
+def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser='', VpnPass='', LogInfo='', useSSHTunnel=1, TelTimOut=90, cronTime=None, clientType='tel', delayFactor=1, JumpHosts='servers.yml'):
 	"""[summary]
 
 	Args:
@@ -1030,6 +1173,7 @@ def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser
 		cronTime ([type], optional): [Parameters for Cron]. Defaults to None.
 		clientType (str, optional): [Telnet or SSH]. Defaults to 'tel'.
 		delayFactor (int, optional): [DelayFactor for SSH client]. Defaults to 1.
+		JumpHosts (str, optional): [File with Servers for JumpHost. Defaults to server.yml]
 
 	Returns:
 		[int]: 0
@@ -1039,35 +1183,16 @@ def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser
 	cronTime = verifyCronTime(cronTime)
 
 	# Servers
-	servers   = verifyServers(SERVERS)
+	if useSSHTunnel == 1:
+		global SERVERS 
+		SERVERS = {}
+		SERVERS = verifyServers(JumpHosts)
 
 	# CSV File
-	try:
-		if aluFileCsv.split(".")[-1] == "csv":
-			iFile 		= open(aluFileCsv,"r")
-			csvFile 	= csv.reader(iFile, delimiter=",", quotechar="|")
-			routers 	= list(csvFile)
-			iFile.close()
-		else:
-			print("Missing CSV file. Verify extension of the file to be '.csv'. Quitting...")
-			quit()
-	except:
-		print("No CSV file found. Quitting ...")
-		quit()
+	routers = verifyCsv(aluFileCsv)
 
 	# Config File
-	try:
-		if aluConfigFileModule.split(".")[-1] == "py":
-			aluConfigFileModule = aluConfigFileModule.split(".")[0]
-			#exec ("from " + aluConfigFileModule + " import construir_cliLine")
-			mod = importlib.import_module(aluConfigFileModule)
-			print(mod)
-		else:
-			print("Missing config file. Verify extension of the file to be '.py'. Quitting...")
-			quit()
-	except:
-		print("No configFile found. Quitting ...")
-		quit()
+	mod = verifyPlugin(aluConfigFileModule)
 
 	
 	# Running...
@@ -1133,10 +1258,12 @@ def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser
 
 	elif outputJob == 0:
 
-		with open("job0_" + aluConfigFileModule + ".cfg", "w") as text_file:
-			text_file.write(aluCliLineJob0)
+		#job0FileName = "job0_" + aluConfigFileModule
 
-		print(aluCliLineJob0)
+		#with open(job0FileName + ".cfg", "w") as text_file:
+		#	text_file.write(aluCliLineJob0)
+
+		renderMop(aluCliLineJob0, aluConfigFileModule)
 
 		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor)
 
@@ -1158,11 +1285,9 @@ if __name__ == '__main__':
 	parser1.add_argument('-df' ,'--delayFactor', type=int, help='SSH delay factor. Default=1', default=1,)
 	parser1.add_argument('-tun','--sshTunnel',   type=int, help='Use SSH Tunnel to routers. Default=1', default=1, choices=[0,1])
 	parser1.add_argument('-ct', '--clientType',  type=str, help='Connection type. Default=tel', default='tel', choices=['tel','ssh'])
-	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.4' )
+	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.5' )
 
 	args = parser1.parse_args()
-
-	global SERVERS
 
 	### reading parameters
 
@@ -1178,19 +1303,13 @@ if __name__ == '__main__':
 	cronTime            = args.cronTime
 	clientType          = args.clientType
 	delayFactor         = args.delayFactor
-
-	try:
-		with open(args.JumpHosts,'r') as f:
-			SERVERS = yaml.load(f, Loader=yaml.FullLoader)
-	except:
-		print("Missing " + args.JumpHosts + " file. Quitting..")
-		quit()
+	JumpHosts           = args.JumpHosts
 
 	### Rady to go ...
 
 	if outputJob == 0:
 
-		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor)
+		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts)
 
 	elif outputJob == 2 and VpnUser and progNumThreads and LogInfo and useSSHTunnel in [0,1] and TelTimOut:
 
@@ -1199,7 +1318,7 @@ if __name__ == '__main__':
 		print("#######################################\n")
 		VpnPass = getpass("### -> PASSWORD (" + VpnUser + "): ")
 
-		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor)
+		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts)
 
 	else:
 
