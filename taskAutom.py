@@ -363,6 +363,7 @@ def renderMop(aluCliLineJob0, aluConfigFileModule):
 	#	config = f.read()
 
 	config = aluCliLineJob0.split('\n')
+	config = [x for x in config if len(x) > 0]
 
 	myDoc = docx.Document()
 	myStyles = myDoc.styles  
