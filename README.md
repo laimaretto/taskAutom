@@ -65,23 +65,19 @@ def construir_cliLine(m, datos, mop=None):
 	address    = datos[4]
 
 	cfg        = ""
-	title      = ""
 
-	if mop:
-		title = "\nH2:Router: " + router + ", " + ipSystem + "\n"
+	if mop and m == 0:
+		cfg = "\nH2:Router: " + router + ", " + ipSystem + "\n"
 
 	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
 	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
 
-	if mop:
-		return title + cfg
-	else:
-		return cfg
+	return cfg
 ```
 
 ##### MOP
 
-When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `H2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information.
+When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `H2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using `Heading 3` by issuing the prefix `H3` to the strings.
 
 #### Result
 
