@@ -1,21 +1,36 @@
 def construir_cliLine(m, datos, mop=None):
 
-	ipSystem   = datos[0]
-	router     = datos[1]
-	port       = datos[2]
-	intName    = datos[3]
-	address    = datos[4]
+    system  = datos[0]
+    rtrName = datos[1]
+    intName = datos[2]
+    port    = datos[3]
+    ipAddr  = datos[4]
 
-	cfg        = ""
-	title      = ""
+    title    = ""
+    cfg      = "" 
 
-	if mop:
-		title = "\nRouter: " + router + ", " + ipSystem + "\n"
+	# We want a title for each router with Heading 2...
+    if mop and m == 0:
+        cfg = "\nHeading_2:Router: " + rtrName + " (" + system + ")\n"
 
-	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
-	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
+    # Configure interfaces ...
+    if intName == "loop0":
+		
+        # We want a subtitle with Heading 3...
+        if mop:
+            cfg = cfg + "\nHeading_3:Loopback Interface\n"
+        
+        cfg = cfg + "/configure router interface " + intName + " loopback " + "\n"
+        cfg = cfg + "/configure router interface " + intName + " address " + ipAddr + "\n"
 
-	if mop:
-		return title + cfg
-	else:
-		return cfg
+    else:
+
+        # We want a subtitle with Heading 3...
+        # We have more than one WanInt, so the title is needed only once, the first time (m==0).
+        if mop and m == 0:
+            cfg = cfg + "\nHeading_3:Wan Interface\n"
+                
+        cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
+        cfg = cfg + "/configure router interface " + intName + " address " + ipAddr + "\n"
+
+    return cfg
