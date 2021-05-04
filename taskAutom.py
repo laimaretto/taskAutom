@@ -1286,7 +1286,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-df' ,'--delayFactor', type=int, help='SSH delay factor. Default=1', default=1,)
 	parser1.add_argument('-tun','--sshTunnel',   type=int, help='Use SSH Tunnel to routers. Default=1', default=1, choices=[0,1])
 	parser1.add_argument('-ct', '--clientType',  type=str, help='Connection type. Default=tel', default='tel', choices=['tel','ssh'])
-	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.5' )
+	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.6' )
 
 	args = parser1.parse_args()
 
