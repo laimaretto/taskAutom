@@ -67,7 +67,7 @@ def construir_cliLine(m, datos, mop=None):
 	cfg        = ""
 
 	if mop and m == 0:
-		cfg = "\nH2:Router: " + router + ", " + ipSystem + "\n"
+		cfg = "\nHeading_2:Router: " + router + ", " + ipSystem + "\n"
 
 	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
 	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
