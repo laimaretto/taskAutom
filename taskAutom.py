@@ -340,8 +340,9 @@ def verifyPlugin(aluConfigFileModule):
 		else:
 			print("Missing config file. Verify extension of the file to be '.py'. Quitting...")
 			quit()
-	except:
-		print("No configFile found. Quitting ...")
+	except Exception as e:
+		print(e)
+		print("----\nError importing configFile. Quitting ...")
 		quit()
 
 	return mod
@@ -385,13 +386,13 @@ def renderMop(aluCliLineJob0, aluConfigFileModule):
 		if i == 0:
 			myDoc.add_heading('Configuraciones',1)
 
-		if 'H2' in row.split(":")[0]:
+		if 'Heading_2' in row.split(":")[0]:
 			row = ''.join(row.split(":")[1:])
 			subtitle = myDoc.add_paragraph(row)
 			subtitle.style = myDoc.styles['Heading 2']
 			subtitle.paragraph_format.line_spacing = 1.5
 
-		elif 'H3' in row.split(":")[0]:
+		elif 'Heading_3' in row.split(":")[0]:
 			row = ''.join(row.split(":")[1:])
 			subtitle = myDoc.add_paragraph(row)
 			subtitle.style = myDoc.styles['Heading 3']
