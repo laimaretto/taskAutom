@@ -1,12 +1,18 @@
-0:
-  name: 'server1'
-  user: 'user1'
-  password: 'pass1'
+a:
+  name: 'crb'
+  user: 'nokia'
+  password: 'claro123'
   port: 22
-  ip: '10.10.10.10'
+  ip: '10.49.104.4'
 1:
-  name: 'server2'
-  user: 'user2'
-  password: 'pass2'
-  ip: '10.10.10.12'
+  name: 'tct1'
+  user: 'nokia'
+  password: 'claro123'
+  ip: '10.49.104.52'
   port: 22
+b:
+  name: 'tct2'
+  user: 'nokia'
+  password: 'claro123'
+  ip: '10.49.104.52'
+  port: 22  
