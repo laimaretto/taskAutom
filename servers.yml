@@ -1,18 +1,18 @@
 a:
-  name: 'crb'
+  name: 'srvr0'
   user: 'nokia'
-  password: 'claro123'
+  password: 'nokia'
   port: 22
-  ip: '10.49.104.4'
+  ip: '1.1.1.1'
 1:
-  name: 'tct1'
+  name: 'srvr1'
   user: 'nokia'
-  password: 'claro123'
-  ip: '10.49.104.52'
+  password: 'nokia'
+  ip: '2.2.2.2'
   port: 22
 b:
-  name: 'tct2'
+  name: 'srvr2'
   user: 'nokia'
-  password: 'claro123'
-  ip: '10.49.104.52'
+  password: 'nokia'
+  ip: '3.3.3.3'
   port: 22  
