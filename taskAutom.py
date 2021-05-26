@@ -39,7 +39,15 @@ from getpass import getpass
 import re
 import calendar
 import random
+from socket import timeout
+
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
+
+
+# logging.basicConfig(filename='test.log', level=logging.DEBUG)
+# logger = logging.getLogger("netmiko")
+
+
 
 # Variables Login
 IP_LOCALHOST          	 = "127.0.0.1"
@@ -90,11 +98,13 @@ CH_COMA 				  = ","
 
 ####
 
-def fncPrintResults(outputJob, ALU_TELNET_READ_TIMEOUT, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo='', cronTime=[], delayFactor=1, DIRECTORY_LOG_INFO='', ALU_FILE_OUT_CSV=''):
+def fncPrintResults(outputJob, ALU_TELNET_READ_TIMEOUT, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo='', cronTime=[], delayFactor=1, GenMop='no', DIRECTORY_LOG_INFO='', ALU_FILE_OUT_CSV=''):
 	print("\n------ * ------")
-	print("Template File:              " + aluConfigFileModule + ".py")
+	print("Template File:              " + aluConfigFileModule)
 	print("CSV File:                   " + aluFileCsv)
-	print("MOP filename                " + "job0_" + aluConfigFileModule + ".docx\n")
+	print("Text File:                  " + "job0_" + aluConfigFileModule + ".txt")
+	if GenMop == 'yes':
+		print("MOP filename                " + "job0_" + aluConfigFileModule + ".docx\n")
 	print("Total Routers:              " + str(len(routers)))
 	if useSSHTunnel == 1:
 		print("Use SSH tunnel:             " + str(useSSHTunnel) +" ("+ str(len(SERVERS)) +")" )
@@ -347,7 +357,21 @@ def verifyPlugin(aluConfigFileModule):
 
 	return mod
 
-def renderMop(aluCliLineJob0, aluConfigFileModule):
+def verifyConfigFile(config_file):
+	""" This function checks the whole text in order to search for ASCII 
+	characters (7bit) since 8bit chars won't allow a proper boot process.
+	"""
+
+	charset_allowed = [chr(c) for c in range(128)]
+
+	for i,line in enumerate(config_file.split('\n')):
+		for character in line:
+			if character not in charset_allowed:
+				return i+1, line, character
+
+	return -1,-1
+
+def renderMop(aluCliLineJob0, aluConfigFileModule, GenMop):
 	"""[Generates a MOP based on the CSV and plugin information]
 
 	Args:
@@ -358,53 +382,56 @@ def renderMop(aluCliLineJob0, aluConfigFileModule):
 		None
 	"""
 
-	job0FileName = "job0_" + aluConfigFileModule + ".docx"
+	job0docx = "job0_" + aluConfigFileModule + ".docx"
+	job0text = "job0_" + aluConfigFileModule + ".txt"
 
-	#with open(job0_name,'r') as f:
-	#	config = f.read()
+	if GenMop == 'yes':
 
-	config = aluCliLineJob0.split('\n')
-	config = [x for x in config if len(x) > 0]
+		print("\nGenerating MOP: " + job0docx)
+		config = aluCliLineJob0.split('\n')
+		config = [x for x in config if len(x) > 0]
 
-	myDoc = docx.Document()
-	myStyles = myDoc.styles  
+		myDoc = docx.Document()
+		myStyles = myDoc.styles  
 
-	styleConsole = myStyles.add_style('Console', WD_STYLE_TYPE.PARAGRAPH)
-	styleConsole.font.name = 'Courier'
-	styleConsole.font.size = Pt(9)
-	styleConsole.paragraph_format.keep_together = True
+		styleConsole = myStyles.add_style('Console', WD_STYLE_TYPE.PARAGRAPH)
+		styleConsole.font.name = 'Courier'
+		styleConsole.font.size = Pt(9)
+		styleConsole.paragraph_format.keep_together = True
 
-	styleConsole.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-	#styleConsole.paragraph_format.line_spacing = Pt(10)
-	#styleConsole.paragraph_format.line_spacing = .2
-	styleConsole.paragraph_format.space_after = Pt(2)
+		styleConsole.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+		#styleConsole.paragraph_format.line_spacing = Pt(10)
+		#styleConsole.paragraph_format.line_spacing = .2
+		styleConsole.paragraph_format.space_after = Pt(2)
 
-	myDoc.add_heading('MOP for ' + aluConfigFileModule, 0)
+		myDoc.add_heading('MOP for ' + aluConfigFileModule, 0)
 
-	for i,row in enumerate(config):
+		for i,row in enumerate(config):
 
-		if i == 0:
-			myDoc.add_heading('Configuraciones',1)
+			if i == 0:
+				myDoc.add_heading('Configuraciones',1)
 
-		if 'Heading_2' in row.split(":")[0]:
-			row = ''.join(row.split(":")[1:])
-			subtitle = myDoc.add_paragraph(row)
-			subtitle.style = myDoc.styles['Heading 2']
-			subtitle.paragraph_format.line_spacing = 1.5
+			if 'Heading_2' in row.split(":")[0]:
+				row = ''.join(row.split(":")[1:])
+				subtitle = myDoc.add_paragraph(row)
+				subtitle.style = myDoc.styles['Heading 2']
+				subtitle.paragraph_format.line_spacing = 1.5
 
-		elif 'Heading_3' in row.split(":")[0]:
-			row = ''.join(row.split(":")[1:])
-			subtitle = myDoc.add_paragraph(row)
-			subtitle.style = myDoc.styles['Heading 3']
-			subtitle.paragraph_format.line_spacing = 1.5
+			elif 'Heading_3' in row.split(":")[0]:
+				row = ''.join(row.split(":")[1:])
+				subtitle = myDoc.add_paragraph(row)
+				subtitle.style = myDoc.styles['Heading 3']
+				subtitle.paragraph_format.line_spacing = 1.5
 
-		else:
-			configText = myDoc.add_paragraph(row)
-			configText.style = myDoc.styles['Console']
+			else:
+				configText = myDoc.add_paragraph(row)
+				configText.style = myDoc.styles['Console']
 
-	print(aluCliLineJob0)
+		myDoc.save(job0docx)
+		print("MOP done...")
 
-	myDoc.save(job0FileName)
+	with open(job0text,'w') as f:
+		f.write(aluCliLineJob0)
 
 ###
 
@@ -474,11 +501,11 @@ class myConnection(threading.Thread):
 		self.connInfo.update(self.fncConnectToRouter(self.connInfo))
 
 		if self.connInfo['conn2rtr'] != -1 and self.connInfo['aluLogged'] == 1:
-
+			
 			self.connInfo['timos']      = self.fncAuxGetVal(self.connInfo['conn2rtr'], self.connInfo['clientType'], 'timos')
 			self.connInfo['hostname']   = self.fncAuxGetVal(self.connInfo['conn2rtr'], self.connInfo['clientType'], 'hostname')
 			self.connInfo['timosMajor'] = int(self.connInfo['timos'].split("-")[2].split(".")[0])
-
+			
 			if self.outputJob == 2:
 
 				fncPrintConsole(self.strConn + "#### Running routine for " + self.connInfo['systemIP'] +  " ...")
@@ -509,7 +536,7 @@ class myConnection(threading.Thread):
 						self.outRx          		  = self.b[3]
 
 				else:
-
+					
 					self.b = self.routerRunRoutine(self.datos, self.ALU_TELNET_READ_TIMEOUT, self.connInfo)
 	
 					self.connInfo['aluLogReason'] = self.b[0]
@@ -524,7 +551,7 @@ class myConnection(threading.Thread):
 
 				else:
 
-					fncPrintConsole(self.strConn + "TelnetReadTimeOut")
+					fncPrintConsole(self.strConn + str(self.connInfo['aluLogReason']))
 
 		self.logData(self.connInfo, self.num, self.tDiff, self.ALU_FILE_OUT_CSV, self.outRx, self.fRx, self.strConn, self.datos, self.LogInfo, self.LOG_TIME, self.plugin)
 
@@ -532,7 +559,6 @@ class myConnection(threading.Thread):
 		# closing connections #
 
 		print(self.connInfo['conn2rtr'], self.connInfo['aluLogged'], self.connInfo['useSSHTunnel'], self.connInfo['sshServer'].tunnel_is_up, self.connInfo['clientType'])
-		#print(self.connInfo)
 		
 		if self.connInfo['conn2rtr'] != -1 or self.connInfo['aluLogged'] == 1:
 
@@ -559,7 +585,7 @@ class myConnection(threading.Thread):
 		elif clientType == 'ssh':
 
 			if type(inText) == type([]):
-				output = conn2rtr.send_config_set(inText, cmd_verify=False)
+				output = conn2rtr.send_config_set(config_commands=inText, cmd_verify=False, enter_config_mode=False)
 			elif type(inText) == type(''):
 				output = conn2rtr.send_command(inText)
 
@@ -768,14 +794,16 @@ class myConnection(threading.Thread):
 												ssh_username = tempUser, 
 												ssh_password = tempPass, 
 												remote_bind_address = (connInfo['systemIP'], connInfo['remotePort']),
+												allow_agent = False,
 											)
 			server.start()
 			localPort = server.local_bind_port
 			controlPlaneAccess = 1
 			fncPrintConsole(self.strConn + "sshServerTunnel on port: " + str(localPort))
 
-		except:
+		except Exception as e:
 
+			fncPrintConsole(strConn, e)
 			fncPrintConsole(strConn + "Error SSH Tunnel")
 			controlPlaneAccess = -1
 			localPort 		   = -1
@@ -954,7 +982,7 @@ class myConnection(threading.Thread):
 	def routerRunRoutine(self, datos, ALU_TELNET_READ_TIMEOUT, connInfo):
 
 		# Sending script to ALU
-		runStatus = 1
+		runStatus    = 1
 		tStart 		 = time.time()
 		outRx  		 = ""
 		aluLogReason = ""
@@ -965,34 +993,49 @@ class myConnection(threading.Thread):
 			# Splitting self.datos into individual lines
 			fncPrintConsole(self.strConn + "Running script per line...", show=1)
 
-		if connInfo['clientType'] == 'tel':
-			self.fncWriteToConnection(datos, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
-			outRx = connInfo['conn2rtr'].read_until(ALU_FIN_SCRIPT.encode(), ALU_TELNET_READ_TIMEOUT)
-			outRx = outRx.decode()
 
-		elif connInfo['clientType'] == 'ssh':
-			datos = datos.split('\n')[1:]
-			outRx = self.fncWriteToConnection(datos, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
-			#conn2rtr.expect(".*"+ALU_FIN_SCRIPT+".*", timeout=ALU_TELNET_READ_TIMEOUT)
-			#outRx = conn2rtr.current_output
+		try:
 
-		## Analizing output
-		str_major_error_list = [x.decode() for x in ALU_MAJOR_ERROR_LIST]
-		str_minor_error_list = [x.decode() for x in ALU_MINOR_ERROR_LIST]
-		
-		if any(word in outRx for word in str_major_error_list):
-			aluLogReason = "MajorFailed"
-		elif any(word in outRx for word in str_minor_error_list):
-			aluLogReason = "MinorFailed"
-		else:
-			aluLogReason = "SendSuccess"
+			if connInfo['clientType'] == 'tel':		
+				self.fncWriteToConnection(datos, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
+				outRx = connInfo['conn2rtr'].read_until(ALU_FIN_SCRIPT.encode(), ALU_TELNET_READ_TIMEOUT)
+				outRx = outRx.decode()
+			elif connInfo['clientType'] == 'ssh':					
+				datos = datos.split('\n')[1:]
+				outRx = self.fncWriteToConnection(datos, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
+
+		except ConnectionResetError:
+			aluLogReason = "ConnectionResetError"
+			runStatus = -1
+		except EOFError as e:
+			aluLogReason = "EOFError"
+			runStatus = -1
+		except Exception as e:
+			aluLogReason = "GeneralError"
+			runStatus = -1		
 
 		tEnd  = time.time()
 		tDiff = tEnd - tStart
 
-		if abs(tDiff - ALU_TELNET_READ_TIMEOUT) <= ALU_TIME_DIFF:
-			aluLogReason = "TelnetReadTimeOut"
-			runStatus = -1
+		## Analizing output only if writing to connection was successfull
+		if aluLogReason == "":
+
+			str_major_error_list = [x.decode() for x in ALU_MAJOR_ERROR_LIST]
+			str_minor_error_list = [x.decode() for x in ALU_MINOR_ERROR_LIST]
+			
+			if ALU_FIN_SCRIPT not in outRx:
+				aluLogReason = "ReadTimeout"	
+				runStatus    = -1
+			elif any(word in outRx for word in str_major_error_list):
+				aluLogReason = "MajorFailed"
+			elif any(word in outRx for word in str_minor_error_list):
+				aluLogReason = "MinorFailed"
+			else:
+				aluLogReason = "SendSuccess"
+
+			# if abs(tDiff - ALU_TELNET_READ_TIMEOUT) <= ALU_TIME_DIFF:
+			# 	aluLogReason = "TelnetReadTimeOut"
+			# 	runStatus = -1
 
 		fncPrintConsole(self.strConn + "Time: " + fncFormatTime(tDiff) + ". Result: " + aluLogReason, show=1)
 
@@ -1158,7 +1201,7 @@ class myConnection(threading.Thread):
 # Main Function                    #
 ####################################
 
-def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser='', VpnPass='', LogInfo='', useSSHTunnel=1, TelTimOut=90, cronTime=None, clientType='tel', delayFactor=1, JumpHosts='servers.yml'):
+def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser='', VpnPass='', LogInfo='', useSSHTunnel=1, TelTimOut=90, cronTime=None, clientType='tel', delayFactor=1, JumpHosts='servers.yml',GenMop='no'):
 	"""[summary]
 
 	Args:
@@ -1250,23 +1293,24 @@ def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser
 
 			for j,item in enumerate(router):
 				aluCliLineJob0 = aluCliLineJob0 + mod.construir_cliLine(j,item,1)
+				verif          = verifyConfigFile(aluCliLineJob0)
+
+				if verif != (-1,-1):
+					print("\nWrong config file for router " + str(router) + "\nCheck (n,line,char): " + str(verif) + "\nQuitting...")
+					quit()
+
 
 	if outputJob == 2:
 		threads_list.close()
 		### The .join() implies that processes/threads need to finish themselves before moving on.
 		threads_list.join()
-		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor, DIRECTORY_LOGS, ALU_FILE_OUT_CSV)
+		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor, GenMop, DIRECTORY_LOGS, ALU_FILE_OUT_CSV)
 
 	elif outputJob == 0:
 
-		#job0FileName = "job0_" + aluConfigFileModule
+		renderMop(aluCliLineJob0, aluConfigFileModule, GenMop)
 
-		#with open(job0FileName + ".cfg", "w") as text_file:
-		#	text_file.write(aluCliLineJob0)
-
-		renderMop(aluCliLineJob0, aluConfigFileModule)
-
-		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor)
+		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor, GenMop)
 
 	return 0
 
@@ -1283,10 +1327,11 @@ if __name__ == '__main__':
 	parser1.add_argument('-u'  ,'--username',    type=str, help='Username', )
 	parser1.add_argument('-th' ,'--threads' ,    type=int, help='Number of threads. Default=1', default=1,)
 	parser1.add_argument('-to' ,'--timeout' ,    type=int, help='Telnet Timeout [sec]. Default=90', default=90,)
-	parser1.add_argument('-df' ,'--delayFactor', type=int, help='SSH delay factor. Default=1', default=1,)
+	parser1.add_argument('-df' ,'--delayFactor', type=float, help='SSH delay factor. Default=1', default=1,)
 	parser1.add_argument('-tun','--sshTunnel',   type=int, help='Use SSH Tunnel to routers. Default=1', default=1, choices=[0,1])
 	parser1.add_argument('-ct', '--clientType',  type=str, help='Connection type. Default=tel', default='tel', choices=['tel','ssh'])
-	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.6' )
+	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.7' )
+	parser1.add_argument('-gm', '--GenMop',      type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
 
 	args = parser1.parse_args()
 
@@ -1305,12 +1350,14 @@ if __name__ == '__main__':
 	clientType          = args.clientType
 	delayFactor         = args.delayFactor
 	JumpHosts           = args.JumpHosts
+	GenMop              = args.GenMop
+
 
 	### Rady to go ...
 
 	if outputJob == 0:
 
-		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts)
+		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts,GenMop)
 
 	elif outputJob == 2 and VpnUser and progNumThreads and LogInfo and useSSHTunnel in [0,1] and TelTimOut:
 
@@ -1319,7 +1366,7 @@ if __name__ == '__main__':
 		print("#######################################\n")
 		VpnPass = getpass("### -> PASSWORD (" + VpnUser + "): ")
 
-		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts)
+		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts,GenMop)
 
 	else:
 

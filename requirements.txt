@@ -1,8 +1,8 @@
 paramiko==2.7.2
-sshtunnel==0.3.1
-netmiko==3.3.2
+sshtunnel==0.4.0
+netmiko==3.4.0
 scp==0.13.3
-pandas==1.1.5
+pandas==1.2.4
 nuitka==0.6.10
 pyyaml==5.3.1
 python-docx==0.8.10
