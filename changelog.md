@@ -10,5 +10,6 @@ Improvement on connection handling
 - Generation of MOP now based on new CLI parameter `-gm`
 - Better handling of connection states based on Exceptions in function `routerRunRoutine()`
 - New versions in `requirements.txt`
+- Function `verifyConfigFile()` to check for scpecial chars in config file.
 
 
