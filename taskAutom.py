@@ -19,6 +19,7 @@ import docx
 from docx.enum.style import WD_STYLE_TYPE 
 from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
+from traitlets.traitlets import default
 
 import yaml
 import sys
@@ -56,7 +57,6 @@ ROUTER_TELNET_PORT       = 23
 ROUTER_SSH_PORT          = 22
 ROUTER_FTP_PORT          = 21
 
-
 # --- Users
 ROUTER_USER1 			 = [None,None]
 ROUTER_USER2 			 = ["extraUser1","extraPassword1"]
@@ -80,7 +80,6 @@ ALU_PROMPT_FTP_LOGIN      = [b"220 FTP server ready"]
 ALU_PROMPT_FTP_BIN_MODE   = [b"binary mode"]
 ALU_PROMPT_FTP_TXFER      = [b"226 Transfer complete"]
 ALU_PROMPT_PASS           = [b"Password:"]
-#ALU_PROMPT                = [b"A:.*#",b"A:.*>.*#",b"B:.*#",b"B:.*>.*#"]
 ALU_PROMPT                = [b"(A:|B:)(.+)(>|#)"]
 ALU_TIMOS_LOGIN           = [b"(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})"]
 ALU_TIMOS_SSH             = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})"
@@ -98,39 +97,59 @@ CH_COMA 				  = ","
 
 ####
 
-def fncPrintResults(outputJob, ALU_TELNET_READ_TIMEOUT, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo='', cronTime=[], delayFactor=1, GenMop='no', DIRECTORY_LOG_INFO='', ALU_FILE_OUT_CSV=''):
-	print("\n------ * ------")
-	print("Template File:              " + aluConfigFileModule)
-	print("CSV File:                   " + aluFileCsv)
-	print("Text File:                  " + "job0_" + aluConfigFileModule + ".txt")
-	if GenMop == 'yes':
-		print("MOP filename                " + "job0_" + aluConfigFileModule + ".docx\n")
-	print("Total Routers:              " + str(len(routers)))
-	if useSSHTunnel == 1:
-		print("Use SSH tunnel:             " + str(useSSHTunnel) +" ("+ str(len(SERVERS)) +")" )
-	else:
-		print("Use SSH tunnel:             " + str(useSSHTunnel) )
-	print("Client Type:                " + str(clientType))
-	print("Total Threads:              " + str(progNumThreads))
-	print("Telnet Timeout:             " + str(ALU_TELNET_READ_TIMEOUT) + "s")
-	print("SSH Delay Factor:           " + str(delayFactor))
+def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', ALU_FILE_OUT_CSV=''):
 
-	if LogInfo:
-		print("Additional Info:            " + LogInfo)
-	else:
-		print("Additional Info:            " + "None")
+	separator = "\n------ * ------"
 
-	if len(cronTime):
-		print("CRON Config:                " + str(cronTime))
-	else:
-		print("CRON Config:                " + "None")
+	outTxt    = ""
 
-	if outputJob > 0:
+
+	outTxt = outTxt + separator + '\n'
+
+	outTxt = outTxt + "Template File:              " + dictParam['aluConfigFileModule'] + '\n'
+	outTxt = outTxt + "CSV File:                   " + dictParam['aluFileCsv'] + '\n'
+	outTxt = outTxt + "Text File:                  " + "job0_" + dictParam['aluConfigFileModule'] + ".txt" + '\n'
+
+	if dictParam['GenMop'] == 'yes':
+		outTxt = outTxt + "MOP filename                " + "job0_" + dictParam['aluConfigFileModule'] + ".docx\n" + '\n'
+	
+	if dictParam['strictOrder'] == 'no':
+		outTxt = outTxt + "Total Routers:              " + str(len(routers)) + '\n'
+	else:
+		outTxt = outTxt + "Total Lines:                " + str(len(routers)) + '\n'
+
+	outTxt = outTxt + separator + '\n'
+	
+	if dictParam['useSSHTunnel'] == 1:
+		outTxt = outTxt + "Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) +" ("+ str(len(SERVERS)) +")" + '\n'
+	else:
+		outTxt = outTxt + "Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) + '\n'
+	
+	outTxt = outTxt + "Client Type:                " + str(dictParam['clientType']) + '\n'
+	outTxt = outTxt + "Total Threads:              " + str(dictParam['progNumThreads']) + '\n'
+	outTxt = outTxt + "Telnet Timeout:             " + str(dictParam['TelTimOut']) + "s" + '\n'
+	outTxt = outTxt + "SSH Delay Factor:           " + str(dictParam['delayFactor']) + '\n'
+	outTxt = outTxt + "Strict Order:               " + dictParam['strictOrder'] + '\n'
+
+	if dictParam['strictOrder'] == 'yes':
+		outTxt = outTxt + "Halt-on-Error:              " + dictParam['haltOnError'] + '\n'
+
+	if dictParam['LogInfo']:
+		outTxt = outTxt + "Additional Info:            " + dictParam['LogInfo'] + '\n'
+	else:
+		outTxt = outTxt + "Additional Info:            " + "None" + '\n'
+
+	if len(dictParam['cronTime']):
+		outTxt = outTxt + "CRON Config:                " + str(dictParam['cronTime']) + '\n'
+	else:
+		outTxt = outTxt + "CRON Config:                " + "None" + '\n'
+
+	if dictParam['outputJob'] > 0:
 
 		timeTotalEnd 	= time.time()
 		timeTotal 		= timeTotalEnd - timeTotalStart		
 
-		print("\n------ * ------")
+		outTxt = outTxt + separator + '\n'
 
 		with open(ALU_FILE_OUT_CSV,'r') as fLog:
 			reader 	= csv.reader(fLog)
@@ -138,35 +157,60 @@ def fncPrintResults(outputJob, ALU_TELNET_READ_TIMEOUT, useSSHTunnel, clientType
 
 		timeLog = [float(row[len(row)-1]) for row in routers]
 
-		print("timeTotal:                  " + fncFormatTime(timeTotal) + "s")
-		print("timeMin                     " + fncFormatTime(min(timeLog)) + "s")
-		print("timeAvg:                    " + fncFormatTime(sum(timeLog)/len(routers)) + "s")
-		print("timeMax:                    " + fncFormatTime(max(timeLog)) + "s")
-		print("timeTotal/Routers:          " + fncFormatTime(timeTotal/len(routers)) + "s")
-		print("\n------ * ------")
+		outTxt = outTxt + "timeTotal:                  " + fncFormatTime(timeTotal) + "s" + '\n'
+		outTxt = outTxt + "timeMin                     " + fncFormatTime(min(timeLog)) + "s" + '\n'
+		outTxt = outTxt + "timeAvg:                    " + fncFormatTime(sum(timeLog)/len(routers)) + "s" + '\n'
+		outTxt = outTxt + "timeMax:                    " + fncFormatTime(max(timeLog)) + "s" + '\n'
+		outTxt = outTxt + "timeTotal/Routers:          " + fncFormatTime(timeTotal/len(routers)) + "s" + '\n'
+
+		outTxt = outTxt + separator + '\n'
 
 		df = pd.DataFrame(routers,columns=['DateTime','LogInfo','Plugin','IP','HostName','User','Reason','id','port','server','clientType','txLines','rxLines','time'])
+
+		df['delayFactor'] = dictParam['delayFactor']
+		df['threads']     = dictParam['progNumThreads']
+		
+		if dictParam['useSSHTunnel'] == 1:
+			df['jumpServers'] = len(SERVERS)
+		else:
+			df['jumpServers'] = 0
+
 		df.to_csv(ALU_FILE_OUT_CSV,index=False)
 
 		dfFailed = df[df['Reason'] != 'SendSuccess']
-		print("\nFailed routers:             " + str(len(dfFailed)))
-		if len(dfFailed) > 0:
-			print(dfFailed)
 
-		dfRun         = pd.read_csv(aluFileCsv, header=None)
+		if dictParam['strictOrder'] == 'no':
+			outTxt = outTxt + "\nFailed routers:             " + str(len(dfFailed)) + '\n'
+		else:
+			outTxt = outTxt + "\nFailed lines:               " + str(len(dfFailed)) + '\n'
+
+		if dictParam['strictOrder'] == 'yes' and dictParam['haltOnError'] == 'yes' and dictParam['aluLogReason'] not in ['SendSucces','ReadTimeout']:
+			outTxt = outTxt + "   --> HaltOnError: " + dictParam['aluLogReason'] + ' <--\n'
+
+		if len(dfFailed) > 0:
+			outTxt = outTxt + dfFailed.to_string() + '\n'
+
+		dfRun         = pd.read_csv(dictParam['aluFileCsv'], header=None)
 
 		errorRouters  = list(df[df['HostName'].isnull()]['IP'])
 		failedRouters = list(df[df['Reason'] != 'SendSuccess']['IP'])
 		
 		dfError       = dfRun[dfRun[0].isin(errorRouters)]
-		dfError.to_csv('dfError_' + aluFileCsv, index=False, header=False)
+		dfError.to_csv('dfError_' + dictParam['aluFileCsv'], index=False, header=False)
 		dfFailed      = dfRun[dfRun[0].isin(failedRouters)]
-		dfFailed.to_csv('dfFailed_' + aluFileCsv, index=False, header=False)
+		dfFailed.to_csv('dfFailed_' + dictParam['aluFileCsv'], index=False, header=False)
 
-		print("\n------ * ------")
-		print(df.groupby(['Reason']).agg({'Reason':['count'],'time':['min','max']}))
+		outTxt = outTxt + separator
+		dfGroup = df.groupby(['Reason']).agg({'Reason':['count'],'time':['min','max']})
 
-	print("------ * ------\n")
+		outTxt = outTxt + '\n' + dfGroup.to_string() + '\n'
+
+		with open(DIRECTORY_LOG_INFO + '00_report.txt','w') as f:
+			f.write(outTxt)
+
+	outTxt = outTxt + separator + '\n'
+
+	print(outTxt)
 
 def fncFormatTime(timeFloat):
 
@@ -180,27 +224,20 @@ def fncPrintConsole(inText, show=1):
 	if show:
 		print(str(time.strftime("%H:%M:%S", localtime)) + "| " + inText)
 
-def run_mi_thread(i, CliLine, ip, outputJob, DIRECTORY_LOGS, LogInfo, LOG_TIME, aluConfigFileModule, useSSHTunnel, ALU_TELNET_READ_TIMEOUT, ALU_FILE_OUT_CSV, cronTime, clientType, delayFactor):
+
+def run_mi_thread(i, CliLine, ip, dictParam):
 	"""[summary]
 
 	Args:
 		i ([type]): [description]
 		CliLine ([type]): [description]
 		ip ([type]): [description]
-		outputJob ([type]): [description]
-		DIRECTORY_LOGS ([type]): [description]
-		LogInfo ([type]): [description]
-		LOG_TIME ([type]): [description]
-		aluConfigFileModule ([type]): [description]
-		useSSHTunnel ([type]): [description]
-		ALU_TELNET_READ_TIMEOUT ([type]): [description]
-		ALU_FILE_OUT_CSV ([type]): [description]
-		cronTime ([type]): [description]
-		clientType ([type]): [description]
-		delayFactor ([type]): [description]
+		dictParam ([dict]): [Dictionary with connection parameters]
 	"""
 	time.sleep(random.random())
-	myConnection(i, CliLine, ip, outputJob, DIRECTORY_LOGS, LogInfo, LOG_TIME, aluConfigFileModule, useSSHTunnel, ALU_TELNET_READ_TIMEOUT, ALU_FILE_OUT_CSV, cronTime, clientType, delayFactor).run()
+	aluLogReason = myConnection(i, CliLine, ip, dictParam).run()
+
+	return aluLogReason
 
 def sort_order(lista):
 	"""[List will be ordered and sorted always by the first field which is the system IP of the router]
@@ -433,31 +470,74 @@ def renderMop(aluCliLineJob0, aluConfigFileModule, GenMop):
 	with open(job0text,'w') as f:
 		f.write(aluCliLineJob0)
 
+def renderCliLine(router, dictParam, mod):
+
+	# if strictOrder == yes, the received router vector will be ..
+	# [ip1, par1, par2, ... , parN]
+	# [ip1, par1, par2, ... , parN]
+	# [ip2, par1, par2, ... , parN]
+	# [ip2, par1, par2, ... , parN]
+
+	# if strictOrder == no, the received router vector will be ..
+	# [[ip1, par1, par2, ... , parN],[ip1, par1, par2, ... , parN]]
+	# [[ip2, par1, par2, ... , parN],[ip2, par1, par2, ... , parN]]
+
+	aluCliLine = ""
+
+	if dictParam['outputJob'] == 2:
+		mop = None
+	else:
+		mop = 1
+
+	if dictParam['strictOrder'] == 'no':
+		systemIP = router[0][0]
+	else:
+		systemIP = router[0]
+
+	if dictParam['strictOrder'] == 'no':
+		for j,item in enumerate(router):
+			aluCliLine = aluCliLine + mod.construir_cliLine(j,item, mop)
+	else:
+		aluCliLine = mod.construir_cliLine(0,router, mop)
+
+	if aluCliLine[-1] == "\n":
+		aluCliLine = aluCliLine[:-1]
+
+	if dictParam['outputJob'] == 2:	
+
+		if len(dictParam['cronTime']) == 0:
+			aluCliLine = "\necho " + ALU_START_SCRIPT + "\n/environment no more\n" + aluCliLine + "\nexit all\necho " + ALU_FIN_SCRIPT
+
+		return systemIP, aluCliLine
+
+	elif dictParam['outputJob'] == 0:
+
+		return aluCliLine
 ###
 
 class myConnection(threading.Thread):
 	"""[Class for connection Object]
 	"""
 
-	def __init__(self, thrdNum, config_line, systemIP, outputJob, DIRECTORY_LOGS, LogInfo, LOG_TIME, aluConfigFileModule, useSSHTunnel, ALU_TELNET_READ_TIMEOUT, ALU_FILE_OUT_CSV, cronTime, clientType, delayFactor):
+	def __init__(self, thrdNum, config_line, systemIP, dictParam):
 
 		threading.Thread.__init__(self)
 		self.num 			= thrdNum
 		self.datos 			= config_line
-		self.outputJob 	    = outputJob
-		self.DIRECTORY_LOGS = DIRECTORY_LOGS
-		self.ALU_TELNET_READ_TIMEOUT = ALU_TELNET_READ_TIMEOUT
-		self.ALU_FILE_OUT_CSV = ALU_FILE_OUT_CSV
-		self.delayFactor    = delayFactor
-		self.LogInfo        = LogInfo
-		self.LOG_TIME       = LOG_TIME
-		self.plugin         = aluConfigFileModule
+		self.outputJob 	    = dictParam['outputJob']
+		self.DIRECTORY_LOGS = dictParam['DIRECTORY_LOGS']
+		self.TelTimOut      = dictParam['TelTimOut']
+		self.ALU_FILE_OUT_CSV = dictParam['ALU_FILE_OUT_CSV']
+		self.delayFactor    = dictParam['delayFactor']
+		self.LogInfo        = dictParam['LogInfo']
+		self.LOG_TIME       = dictParam['LOG_TIME']
+		self.plugin         = dictParam['aluConfigFileModule']
 
 		# local generated variables
 		self.connInfo = {
 			'systemIP':systemIP,
-			'useSSHTunnel':useSSHTunnel,
-			'clientType':clientType,
+			'useSSHTunnel':dictParam['useSSHTunnel'],
+			'clientType':dictParam['clientType'],
 			'localPort':-1,
 			'remotePort':-1,
 			'controlPlaneAccess':-1,
@@ -466,11 +546,11 @@ class myConnection(threading.Thread):
 			'aluLogReason':"N/A",
 			'hostname':"N/A",
 			'timos':"N/A",
-			'cronTime':cronTime,
+			'cronTime':dictParam['cronTime'],
 			'sshServer':-1,
 			'conn2rtr':-1,
-			'delayFactor':delayFactor,
-			'telnetTimeout':ALU_TELNET_READ_TIMEOUT,
+			'delayFactor':dictParam['delayFactor'],
+			'telnetTimeout':dictParam['TelTimOut'],
 		}
 
 		if ":" in self.connInfo['systemIP']:
@@ -526,7 +606,7 @@ class myConnection(threading.Thread):
 					if self.sftpStatus == 1:
 
 						self.datos = self.runCron(self.fCmd, self.connInfo)
-						self.b     = self.routerRunRoutine(self.datos, self.ALU_TELNET_READ_TIMEOUT, self.connInfo)
+						self.b     = self.routerRunRoutine(self.datos, self.TelTimOut, self.connInfo)
 
 						#fncPrintConsole(self.strConn + "Run: " + str(self.b[0]))
 
@@ -537,7 +617,7 @@ class myConnection(threading.Thread):
 
 				else:
 					
-					self.b = self.routerRunRoutine(self.datos, self.ALU_TELNET_READ_TIMEOUT, self.connInfo)
+					self.b = self.routerRunRoutine(self.datos, self.TelTimOut, self.connInfo)
 	
 					self.connInfo['aluLogReason'] = self.b[0]
 					self.tDiff 					  = self.b[1]
@@ -558,7 +638,7 @@ class myConnection(threading.Thread):
 		#######################
 		# closing connections #
 
-		print(self.connInfo['conn2rtr'], self.connInfo['aluLogged'], self.connInfo['useSSHTunnel'], self.connInfo['sshServer'].tunnel_is_up, self.connInfo['clientType'])
+		#print(self.connInfo['conn2rtr'], self.connInfo['aluLogged'], self.connInfo['useSSHTunnel'], self.connInfo['sshServer'].tunnel_is_up, self.connInfo['clientType'])
 		
 		if self.connInfo['conn2rtr'] != -1 or self.connInfo['aluLogged'] == 1:
 
@@ -568,11 +648,13 @@ class myConnection(threading.Thread):
 			elif self.connInfo['clientType'] == 'ssh':
 				self.connInfo['conn2rtr'].disconnect()
 
-		if self.connInfo['useSSHTunnel'] == 1 or self.connInfo['sshServer']:
+		if self.connInfo['useSSHTunnel'] == 1 and self.connInfo['sshServer']:
 			self.connInfo['sshServer'].stop()
 
 		#                     #
 		#######################
+
+		return self.connInfo['aluLogReason']
 
 	def fncWriteToConnection(self, inText, timer, conn2rtr, clientType):
 
@@ -971,15 +1053,15 @@ class myConnection(threading.Thread):
 		aluCompleteRx	= DIRECTORY_LOGS + aluFileOutRx
 
 		# Create files
-		fCmd = open(aluCompleteCmd, "w")
+		fCmd = open(aluCompleteCmd, "a")
 		fCmd.write(datos)
 		fCmd.close()
 
-		fRx	= open(aluCompleteRx, "w")
+		fRx	= open(aluCompleteRx, "a")
 
 		return(fRx, aluCompleteCmd, aluFileCommands)
 
-	def routerRunRoutine(self, datos, ALU_TELNET_READ_TIMEOUT, connInfo):
+	def routerRunRoutine(self, datos, TelTimOut, connInfo):
 
 		# Sending script to ALU
 		runStatus    = 1
@@ -998,7 +1080,7 @@ class myConnection(threading.Thread):
 
 			if connInfo['clientType'] == 'tel':		
 				self.fncWriteToConnection(datos, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
-				outRx = connInfo['conn2rtr'].read_until(ALU_FIN_SCRIPT.encode(), ALU_TELNET_READ_TIMEOUT)
+				outRx = connInfo['conn2rtr'].read_until(ALU_FIN_SCRIPT.encode(), TelTimOut)
 				outRx = outRx.decode()
 			elif connInfo['clientType'] == 'ssh':					
 				datos = datos.split('\n')[1:]
@@ -1033,7 +1115,7 @@ class myConnection(threading.Thread):
 			else:
 				aluLogReason = "SendSuccess"
 
-			# if abs(tDiff - ALU_TELNET_READ_TIMEOUT) <= ALU_TIME_DIFF:
+			# if abs(tDiff - TelTimOut) <= ALU_TIME_DIFF:
 			# 	aluLogReason = "TelnetReadTimeOut"
 			# 	runStatus = -1
 
@@ -1201,116 +1283,107 @@ class myConnection(threading.Thread):
 # Main Function                    #
 ####################################
 
-def fncRun(outputJob, aluFileCsv, aluConfigFileModule, progNumThreads=0, VpnUser='', VpnPass='', LogInfo='', useSSHTunnel=1, TelTimOut=90, cronTime=None, clientType='tel', delayFactor=1, JumpHosts='servers.yml',GenMop='no'):
+def fncRun(dictParam):
 	"""[summary]
 
 	Args:
-		outputJob ([int]): [Type of Job]
-		aluFileCsv ([str]): [data]
-		aluConfigFileModule ([str]): [plugin]
-		progNumThreads (int, optional): Defaults to 0.
-		VpnUser (str, optional): Defaults to ''.
-		VpnPass (str, optional): Defaults to ''.
-		LogInfo (str, optional): [Name of the task]. Defaults to ''.
-		useSSHTunnel (int, optional): Defaults to 1.
-		TelTimOut (int, optional): [Seconds for Telnet Read Timeout]. Defaults to 90.
-		cronTime ([type], optional): [Parameters for Cron]. Defaults to None.
-		clientType (str, optional): [Telnet or SSH]. Defaults to 'tel'.
-		delayFactor (int, optional): [DelayFactor for SSH client]. Defaults to 1.
-		JumpHosts (str, optional): [File with Servers for JumpHost. Defaults to server.yml]
-
+		dictParam ([dict]): [Dictionary with parameters for the connections]
 	Returns:
 		[int]: 0
 	"""
-    
+	################
+	# Checking...
+
 	# CronTime
-	cronTime = verifyCronTime(cronTime)
+	dictParam['cronTime'] = verifyCronTime(dictParam['cronTime'])
 
 	# Servers
-	if useSSHTunnel == 1:
+	if dictParam['useSSHTunnel'] == 1:
 		global SERVERS 
 		SERVERS = {}
-		SERVERS = verifyServers(JumpHosts)
+		SERVERS = verifyServers(dictParam['JumpHosts'])
 
 	# CSV File
-	routers = verifyCsv(aluFileCsv)
+	routers = verifyCsv(dictParam['aluFileCsv'])
 
 	# Config File
-	mod = verifyPlugin(aluConfigFileModule)
+	mod = verifyPlugin(dictParam['aluConfigFileModule'])
 
-	
+	# Strict Order
+	if dictParam['strictOrder'] == 'yes':
+		dictParam['progNumThreads'] = 1
+
+	# Parsing Data
+	if dictParam['strictOrder'] == 'no':
+		routers = sort_order(routers)
+
+	timeTotalStart 	= time.time()
+
+	################
 	# Running...
-	if outputJob == 2:
+	if dictParam['outputJob'] == 2:
 
 		# LogInfo
-		LOG_TIME           = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-		DIRECTORY_LOGS 	   = os.getcwd() + "/logs_" + LOG_TIME + "_" + LogInfo + "_" + aluConfigFileModule + "/"
-		ALU_FILE_OUT_CSV   = DIRECTORY_LOGS + "00_log.csv"
+		dictParam['LOG_TIME']           = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
+		dictParam['DIRECTORY_LOGS']     = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['LogInfo'] + "_" + dictParam['aluConfigFileModule'] + "/"
+		dictParam['ALU_FILE_OUT_CSV']   = dictParam['DIRECTORY_LOGS'] + "00_log.csv"
 
 		# Verify if DIRECTORY_LOGS exists. If so, ask for different name ...
-		if os.path.exists(DIRECTORY_LOGS):
-			print("Folder " + DIRECTORY_LOGS + " already exists.\nUse a different folder name.\nQuitting ...")
+		if os.path.exists(dictParam['DIRECTORY_LOGS']):
+			print("Folder " + dictParam['DIRECTORY_LOGS'] + " already exists.\nUse a different folder name.\nQuitting ...")
 			quit()
 		else:
-			os.makedirs(DIRECTORY_LOGS)
-			open(ALU_FILE_OUT_CSV,'w').close()
+			os.makedirs(dictParam['DIRECTORY_LOGS'])
+			open(dictParam['ALU_FILE_OUT_CSV'],'w').close()
 			#os.mknod(ALU_FILE_OUT_CSV)
 
 		# VPN Access
-		ROUTER_USER1[0] = VpnUser
-		ROUTER_USER1[1] = VpnPass
+		ROUTER_USER1[0] = dictParam['VpnUser']
+		ROUTER_USER1[1] = dictParam['VpnPass']
 
-		#### --- Generar threads
-		#lock 			= threading.Lock()
-		threads_list 	= ThreadPool(progNumThreads)
+		# Generar threads
+		threads_list 	= ThreadPool(dictParam['progNumThreads'])
 
-	
-	#### --- Parsing Data
-	routers 		= sort_order(routers)
-	timeTotalStart 	= time.time()
-	aluCliLineJob0  = ""
-	
-	for i, router in enumerate(routers):
+		###############
+		# Let's run ....
+		for i, router in enumerate(routers):
 
-		systemIP  = router[0][0]
-		aluCliLine = ""
-
-		if outputJob == 2:
-
-			for j,item in enumerate(router):
-				aluCliLine = aluCliLine + mod.construir_cliLine(j,item)
-
-			if aluCliLine[-1] == "\n":
-				aluCliLine = aluCliLine[:-1]
-
-			if len(cronTime)==0:
-				aluCliLine = "\necho " + ALU_START_SCRIPT + "\n/environment no more\n" + aluCliLine + "\nexit all\necho " + ALU_FIN_SCRIPT
+			systemIP, aluCliLine = renderCliLine(router, dictParam, mod)
 
 			# running routine
-			threads_list.apply_async(run_mi_thread, args=(i, aluCliLine, systemIP, outputJob, DIRECTORY_LOGS, LogInfo, LOG_TIME, aluConfigFileModule, useSSHTunnel, TelTimOut, ALU_FILE_OUT_CSV, cronTime, clientType, delayFactor))
+			if dictParam['strictOrder'] == 'no':
+				threads_list.apply_async(run_mi_thread, args=(i, aluCliLine, systemIP, dictParam))
+			else:
+				aluLogReason = run_mi_thread(i, aluCliLine, systemIP, dictParam)
 
-		else:
+				if dictParam['haltOnError'] == 'yes' and aluLogReason not in ['SendSuccess','ReadTimeout']:
+					dictParam['aluLogReason'] = aluLogReason
+					break
 
-			for j,item in enumerate(router):
-				aluCliLineJob0 = aluCliLineJob0 + mod.construir_cliLine(j,item,1)
-				verif          = verifyConfigFile(aluCliLineJob0)
-
-				if verif != (-1,-1):
-					print("\nWrong config file for router " + str(router) + "\nCheck (n,line,char): " + str(verif) + "\nQuitting...")
-					quit()
+		if dictParam['strictOrder'] == 'no':
+			threads_list.close()
+			### The .join() implies that processes/threads need to finish themselves before moving on.
+			threads_list.join()
 
 
-	if outputJob == 2:
-		threads_list.close()
-		### The .join() implies that processes/threads need to finish themselves before moving on.
-		threads_list.join()
-		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor, GenMop, DIRECTORY_LOGS, ALU_FILE_OUT_CSV)
+		fncPrintResults(routers, timeTotalStart, dictParam, dictParam['DIRECTORY_LOGS'], dictParam['ALU_FILE_OUT_CSV'])
 
-	elif outputJob == 0:
+	elif dictParam['outputJob'] == 0:
 
-		renderMop(aluCliLineJob0, aluConfigFileModule, GenMop)
+		aluCliLineJob0  = ""
 
-		fncPrintResults(outputJob, TelTimOut, useSSHTunnel, clientType, progNumThreads, aluConfigFileModule, aluFileCsv, routers, timeTotalStart, LogInfo, cronTime, delayFactor, GenMop)
+		for i, router in enumerate(routers):
+
+			aluCliLineJob0 = aluCliLineJob0 + renderCliLine(router, dictParam, mod)
+
+		verif = verifyConfigFile(aluCliLineJob0)
+
+		if verif != (-1,-1):
+			print("\nWrong config file for router " + str(router) + "\nCheck (n,line,char): " + str(verif) + "\nQuitting...")
+			quit()			
+
+		renderMop(aluCliLineJob0, dictParam['aluConfigFileModule'], dictParam['GenMop'])
+		fncPrintResults(routers, timeTotalStart, dictParam)
 
 	return 0
 
@@ -1322,7 +1395,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-py' ,'--pyFile' ,     type=str, required=True, help='PY Template File',)
 
 	parser1.add_argument('-log','--logInfo' ,    type=str, help='Description for log folder', )
-	parser1.add_argument('-jh' ,'--JumpHosts',   type=str, help='JumpHosts file. Default=servers.yml', default='servers.yml')
+	parser1.add_argument('-jh' ,'--jumpHosts',   type=str, help='JumpHosts file. Default=servers.yml', default='servers.yml')
 	parser1.add_argument('-crt','--cronTime',    type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
 	parser1.add_argument('-u'  ,'--username',    type=str, help='Username', )
 	parser1.add_argument('-th' ,'--threads' ,    type=int, help='Number of threads. Default=1', default=1,)
@@ -1330,43 +1403,55 @@ if __name__ == '__main__':
 	parser1.add_argument('-df' ,'--delayFactor', type=float, help='SSH delay factor. Default=1', default=1,)
 	parser1.add_argument('-tun','--sshTunnel',   type=int, help='Use SSH Tunnel to routers. Default=1', default=1, choices=[0,1])
 	parser1.add_argument('-ct', '--clientType',  type=str, help='Connection type. Default=tel', default='tel', choices=['tel','ssh'])
-	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.7' )
-	parser1.add_argument('-gm', '--GenMop',      type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-v'  ,'--version',               help='Version', action='version', version='Lucas Aimaretto - (C)2020 - laimaretto@gmail.com - Version: 7.8' )
+	parser1.add_argument('-gm', '--genMop',      type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-so', '--strictOrder', type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-hoe','--haltOnError', type=str, help='If using --strictOrder, halts if error found on execution. Default=no', default='no', choices=['no','yes'])
 
 	args = parser1.parse_args()
 
 	### reading parameters
 
-	outputJob 			= args.jobType
-	aluFileCsv 			= args.csvFile
-	aluConfigFileModule = args.pyFile
-	VpnUser 			= args.username
-	VpnPass 			= None
-	progNumThreads		= args.threads
-	LogInfo 			= args.logInfo
-	useSSHTunnel 		= args.sshTunnel
-	TelTimOut 			= args.timeout
-	cronTime            = args.cronTime
-	clientType          = args.clientType
-	delayFactor         = args.delayFactor
-	JumpHosts           = args.JumpHosts
-	GenMop              = args.GenMop
-
+	dictParam = dict(
+		outputJob 			= args.jobType,
+		aluFileCsv 			= args.csvFile,
+		aluConfigFileModule = args.pyFile,
+		VpnUser 			= args.username,
+		VpnPass 			= None,
+		progNumThreads		= args.threads,
+		LogInfo 			= args.logInfo,
+		useSSHTunnel 		= args.sshTunnel,
+		TelTimOut 			= args.timeout,
+		cronTime            = args.cronTime,
+		clientType          = args.clientType,
+		delayFactor         = args.delayFactor,
+		JumpHosts           = args.jumpHosts,
+		GenMop              = args.genMop,
+		strictOrder         = args.strictOrder,
+		haltOnError         = args.haltOnError,
+	)
 
 	### Rady to go ...
 
-	if outputJob == 0:
+	if dictParam['outputJob'] == 0:
 
-		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts,GenMop)
+		fncRun(dictParam)
 
-	elif outputJob == 2 and VpnUser and progNumThreads and LogInfo and useSSHTunnel in [0,1] and TelTimOut:
+	elif (	
+		dictParam['outputJob'] == 2 and 
+		dictParam['VpnUser'] and 
+		dictParam['progNumThreads'] and 
+		dictParam['LogInfo'] and 
+		dictParam['useSSHTunnel'] in [0,1] and 
+		dictParam['TelTimOut'] 
+		):
 
 		print("\n#######################################")
 		print("# About to run. Ctrl+C if not sure... #")
 		print("#######################################\n")
-		VpnPass = getpass("### -> PASSWORD (" + VpnUser + "): ")
+		dictParam['VpnPass'] = getpass("### -> PASSWORD (" + dictParam['VpnUser'] + "): ")
 
-		fncRun(outputJob,aluFileCsv,aluConfigFileModule,progNumThreads,VpnUser,VpnPass,LogInfo,useSSHTunnel,TelTimOut,cronTime,clientType,delayFactor,JumpHosts,GenMop)
+		fncRun(dictParam)
 
 	else:
 
