@@ -1,6 +1,6 @@
 # README #
 
-This idea was born because of a need for a simple tool in order to automate execution of simple configuration teamplates on Nokia SROS based routers. The idea was to have data on a CSV file and the configuration templates written in pure Python. Configuration scripts would be the result of these templates being rendered with the CSV data.
+This idea was born because of a need for a simple tool to automate execution of simple configuration teamplates on Nokia SROS based routers. Data provided on a CSV file and the configuration templates written in pure Python. Configuration scripts are the result of these templates being rendered with the CSV data.
 
 ## Setup ##
 
@@ -75,9 +75,16 @@ def construir_cliLine(m, datos, mop=None):
 	return cfg
 ```
 
-##### MOP
+#### Inventory
 
-When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `Heading_2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using the prefix `Heading_3`.
+By default, `taskAutom` connects to each router that exists inside the CSV data file. But an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
+
+ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost
+--|--------|--------|------------|-------------|-----------|----------|--------
+1.1.1.1|user1|pass1|yes||0.5|ssh|server1
+2.2.2.2|user2|pass2|no|90||tel|
+
+If fieds in the CSV are left empty, those are replaced by default values.
 
 #### Result
 
@@ -96,6 +103,10 @@ Router: router2, 10.0.0.2
 
 Otherwise, if `taskAutom` is invoked with option `jobType=2`, it will connect to each and every router, and execute the commands. User and password must be provided in this case.
 
+##### MOP
+
+When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `Heading_2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using the prefix `Heading_3`.
+
 #### Configuration Options
 
 `taskAutom` can be configured through CLI as shown below.
@@ -108,29 +119,37 @@ Task Automation Parameters.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -csv CSVFILE, --csvFile CSVFILE
-                        CSV File with parameters
+  -v, --version         Version
   -j {0,2}, --jobType {0,2}
                         Type of job
+  -csv CSVFILE, --csvFile CSVFILE
+                        CSV File with parameters
   -py PYFILE, --pyFile PYFILE
                         PY Template File
   -log LOGINFO, --logInfo LOGINFO
                         Description for log folder
-  -jh JUMPHOSTS, --JumpHosts JUMPHOSTS
-                        JumpHosts file. Default=servers.yml
+  -jh JUMPHOSTSFILE, --jumpHostsFile JUMPHOSTSFILE
+                        jumpHosts file. Default=servers.yml
+  -inv INVENTORYFILE, --inventoryFile INVENTORYFILE
+                        inventory.csv file with per router connection parameters. Default=None
   -crt CRONTIME [CRONTIME ...], --cronTime CRONTIME [CRONTIME ...]
                         Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).
   -u USERNAME, --username USERNAME
                         Username
   -th THREADS, --threads THREADS
                         Number of threads. Default=1
-  -to TIMEOUT, --timeout TIMEOUT
+  -to TELNETTIMEOUT, --telnetTimeout TELNETTIMEOUT
                         Telnet Timeout [sec]. Default=90
   -df DELAYFACTOR, --delayFactor DELAYFACTOR
                         SSH delay factor. Default=1
-  -tun {0,1}, --sshTunnel {0,1}
-                        Use SSH Tunnel to routers. Default=1
+  -tun {no,yes}, --sshTunnel {no,yes}
+                        Use SSH Tunnel to routers. Default=yes
   -ct {tel,ssh}, --clientType {tel,ssh}
                         Connection type. Default=tel
-  -v, --version         Version
+  -gm {no,yes}, --genMop {no,yes}
+                        Generate MOP. Default=no
+  -so {no,yes}, --strictOrder {no,yes}
+                        Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no
+  -hoe {no,yes}, --haltOnError {no,yes}
+                        If using --strictOrder, halts if error found on execution. Default=no
 ```
