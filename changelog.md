@@ -1,5 +1,13 @@
 # Versions #
 
+## [7.9] - 2021-06-16
+
+Inventory File
+
+- Posibility of implementing per router connection parameters.
+- If inventory file is being used, default connection values overridden by those in the inventory file.
+    - If a router exists in data CSV, but not in the inventory file, default values are used.
+
 ## [7.8] - 2021-06-14
 
 Implement strict Order
