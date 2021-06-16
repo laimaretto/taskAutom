@@ -14,15 +14,21 @@ sudo pip3 install -r requirements.txt
 For Windows users, make sure you have Python and [PIP](https://pip.pypa.io/en/stable/installing/) installed.
 
 #### Edit `servers.yml`
-This file has configuration parameters for the Jump Host(s). Add as many as needed. First server is `0`, next one is `1` and so on, so forth. If more than one jump-host is declared, the connections will be load balanced sequentially among them.
+This file has configuration parameters for the Jump Host(s). Add as many as needed. If more than one jump-host is declared, the connections will be load balanced sequentially among them.
 
 ```yml
-0:
+srvr0:
     name: 'myServer'
     user: 'myUser'
     password: 'myPass'
-    ip: 'a.b.c.d'
+    ip: '1.1.1.1'
     port: 22
+srvr1:
+    name: 'myServer'
+    user: 'myUser'
+    password: 'myPass'
+    ip: '2.2.2.2'
+    port: 22    
 ```
 
 You can comment out some servers, if needed.
@@ -37,7 +43,7 @@ Compiling has been tested succesfully under Ubuntu. Don't know if this is direct
 
 ## Usage ##
 
-The program needs two inputs: a) CSV file with data and b) a plugin, which is nothing but a configuration template.
+The program needs two mandatory inputs: a) CSV file with data and b) a plugin, which is nothing but a configuration template.
 
 #### CSV
 
@@ -77,7 +83,7 @@ def construir_cliLine(m, datos, mop=None):
 
 #### Inventory
 
-By default, `taskAutom` connects to each router that exists inside the CSV data file. But an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
+By default, `taskAutom` connects to each router that exists inside the CSV data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
 ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost
 --|--------|--------|------------|-------------|-----------|----------|--------
