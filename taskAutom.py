@@ -1243,17 +1243,14 @@ class myConnection(threading.Thread):
 			fRx.write(outRx)
 			fRx.close()
 
-		if connInfo['strictOrder'] == 'yes':
+		if connInfo['strictOrder'] == 'no':
 			global_lock.locked()
-			print(global_lock)
 
 		with open(ALU_FILE_OUT_CSV,'a') as fLog:
 			fLog.write(aluCsvLine + "\n")
 		
-		if connInfo['strictOrder'] == 'yes':
+		if connInfo['strictOrder'] == 'no':
 			global_lock.locked()
-			print(global_lock)
-
 
 
 	def routerLogout(self, connInfo):
@@ -1492,7 +1489,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.9.1' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.9.2' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-csv','--csvFile',       type=str, required=True, help='CSV File with parameters',)
