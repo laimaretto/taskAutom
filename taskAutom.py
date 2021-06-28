@@ -87,6 +87,7 @@ ALU_FIN_SCRIPT			  = "SCRIPT_NONO_FIN"
 # --- Extras
 CH_CR					  = "\n"
 CH_COMA 				  = ","
+LOG_GLOBAL                = []
 
 ####
 
@@ -159,9 +160,11 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 		outTxt = outTxt + separator + '\n'
 
-		with open(ALU_FILE_OUT_CSV,'r') as fLog:
-			reader 	= csv.reader(fLog)
-			routers = list(reader)
+		# with open(ALU_FILE_OUT_CSV,'r') as fLog:
+		# 	reader 	= csv.reader(fLog)
+		# 	routers = list(reader)
+
+		routers = [x.split(",") for x in LOG_GLOBAL]
 
 		timeLog = [float(row[len(row)-1]) for row in routers]
 
@@ -175,7 +178,9 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 		outTxt = outTxt + separator + '\n'
 
-		df = pd.DataFrame(routers,columns=['DateTime','logInfo','Plugin','IP','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','servers'])
+		columns=['DateTime','logInfo','Plugin','IP','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','servers']
+
+		df = pd.DataFrame(routers,columns=columns)
 
 		df['threads']     = dictParam['progNumThreads']
 
@@ -1158,7 +1163,6 @@ class myConnection(threading.Thread):
 			# Splitting self.datos into individual lines
 			fncPrintConsole(self.strConn + "Running script per line...", show=1)
 
-
 		try:
 
 			if connInfo['clientType'] == 'tel':		
@@ -1243,11 +1247,13 @@ class myConnection(threading.Thread):
 			fRx.write(outRx)
 			fRx.close()
 
+		LOG_GLOBAL.append(aluCsvLine)
+
 		if connInfo['strictOrder'] == 'no':
 			global_lock.locked()
 
-		with open(ALU_FILE_OUT_CSV,'a') as fLog:
-			fLog.write(aluCsvLine + "\n")
+		# with open(ALU_FILE_OUT_CSV,'a') as fLog:
+		# 	fLog.write(aluCsvLine + "\n")
 		
 		if connInfo['strictOrder'] == 'no':
 			global_lock.locked()
