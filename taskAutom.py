@@ -19,7 +19,7 @@ import docx
 from docx.enum.style import WD_STYLE_TYPE 
 from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
-from traitlets.traitlets import default
+#from traitlets.traitlets import default
 
 import yaml
 import sys
@@ -97,7 +97,6 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 	outTxt    = ""
 
-
 	outTxt = outTxt + separator + '\n'
 
 	#### GLOBALS
@@ -160,11 +159,8 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 		outTxt = outTxt + separator + '\n'
 
-		# with open(ALU_FILE_OUT_CSV,'r') as fLog:
-		# 	reader 	= csv.reader(fLog)
-		# 	routers = list(reader)
-
-		routers = [x.split(",") for x in LOG_GLOBAL]
+		#routers = [x for x in LOG_GLOBAL]
+		routers = LOG_GLOBAL
 
 		timeLog = [float(row[len(row)-1]) for row in routers]
 
@@ -586,7 +582,8 @@ def renderCliLine(router, dictParam, mod):
 ###
 
 class myConnection(threading.Thread):
-	"""[Class for connection Object]
+	"""
+	[Class for connection Object]
 	"""
 
 	def __init__(self, thrdNum, config_line, systemIP, dictParam):
@@ -1212,51 +1209,40 @@ class myConnection(threading.Thread):
 
 	def logData(self, connInfo, connId, tDiff, ALU_FILE_OUT_CSV, outRx, fRx, strConn, datos, logInfo, LOG_TIME, plugin):
 
-		if connInfo['useSSHTunnel'] == 'yes':
-			server     = connInfo['jumpHost']
-			servers    = connInfo['jumpHosts']
-			serverName = server
-			lenServers = len(servers)
-		else:
-			serverName = '-1'
-			lenServers = '-1'
-
-		aluCsvLine = (
-			LOG_TIME + CH_COMA +
-			logInfo + CH_COMA + 
-			plugin + CH_COMA + 
-			connInfo['systemIP'] + CH_COMA +
-			connInfo['hostname'] + CH_COMA +
-			connInfo['username'] + CH_COMA +
-			connInfo['aluLogReason'] + CH_COMA +
-			str(connId) + CH_COMA +
-			str(connInfo['localPort']) + CH_COMA +
-			serverName + CH_COMA +
-			connInfo['clientType'] + CH_COMA +
-			str(len(datos.split('\n'))) + CH_COMA +
-			str(len(outRx.split('\n'))) + CH_COMA +
-			fncFormatTime(tDiff) + CH_COMA +
-			str(connInfo['telnetTimeout']) + CH_COMA + 
-			str(connInfo['delayFactor']) + CH_COMA + 
-			str(lenServers)
-		)
-
-		fncPrintConsole(strConn + "logData: " + aluCsvLine)
-
 		if connInfo['aluLogged'] == 1:
 			fRx.write(outRx)
 			fRx.close()
 
+		if connInfo['useSSHTunnel'] == 'yes':
+			serverName = connInfo['jumpHost']
+			lenServers = len(connInfo['jumpHosts'])
+		else:
+			serverName = '-1'
+			lenServers = '-1'
+
+		aluCsvLine = [
+			LOG_TIME,
+			logInfo,
+			plugin,
+			connInfo['systemIP'],
+			connInfo['hostname'],
+			connInfo['username'],
+			connInfo['aluLogReason'],
+			str(connId),
+			str(connInfo['localPort']),
+			serverName,
+			connInfo['clientType'],
+			str(len(datos.split('\n'))),
+			str(len(outRx.split('\n'))),
+			fncFormatTime(tDiff),
+			str(connInfo['telnetTimeout']),
+			str(connInfo['delayFactor']),
+			str(lenServers),
+			]
+
+		fncPrintConsole(strConn + "logData: " + str(aluCsvLine))
+
 		LOG_GLOBAL.append(aluCsvLine)
-
-		if connInfo['strictOrder'] == 'no':
-			global_lock.locked()
-
-		# with open(ALU_FILE_OUT_CSV,'a') as fLog:
-		# 	fLog.write(aluCsvLine + "\n")
-		
-		if connInfo['strictOrder'] == 'no':
-			global_lock.locked()
 
 
 	def routerLogout(self, connInfo):
@@ -1436,9 +1422,9 @@ def fncRun(dictParam):
 	if dictParam['outputJob'] == 2:
 
 		# logInfo
-		dictParam['LOG_TIME']           = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-		dictParam['DIRECTORY_LOGS']     = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_" + dictParam['pyFile'] + "/"
-		dictParam['ALU_FILE_OUT_CSV']   = dictParam['DIRECTORY_LOGS'] + "00_log.csv"
+		dictParam['LOG_TIME']         = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
+		dictParam['DIRECTORY_LOGS']   = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_" + dictParam['pyFile'] + "/"
+		dictParam['ALU_FILE_OUT_CSV'] = dictParam['DIRECTORY_LOGS'] + "00_log.csv"
 
 		# Verify if DIRECTORY_LOGS exists. If so, ask for different name ...
 		if os.path.exists(dictParam['DIRECTORY_LOGS']):
@@ -1495,7 +1481,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.9.3' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.9.4' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-csv','--csvFile',       type=str, required=True, help='CSV File with parameters',)
