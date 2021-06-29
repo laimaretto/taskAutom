@@ -151,6 +151,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	outTxt = outTxt + "  Telnet Timeout:             " + str(dictParam['telnetTimeout']) + "s" + '\n'
 	outTxt = outTxt + "  SSH Delay Factor:           " + str(dictParam['delayFactor']) + '\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
+	outTxt = outTxt + "  Device Type:                " + str(dictParam['deviceType']) + '\n'
 
 	if dictParam['outputJob'] > 0:
 
@@ -622,6 +623,7 @@ class myConnection(threading.Thread):
 			'jumpHosts':dictParam['jumpHosts'],
 			'inventory':dictParam['inventory'],
 			'strictOrder':dictParam['strictOrder'],
+			'deviceType':dictParam['deviceType'],
 		}
 
 		if self.connInfo['useSSHTunnel'] == 'yes' or dictParam['inventoryFile'] != None:
@@ -856,9 +858,9 @@ class myConnection(threading.Thread):
 
 				try:
 					if connInfo['useSSHTunnel'] == 'yes':
-						a = self.routerLoginSsh(IP_LOCALHOST, connInfo['localPort'], connInfo['systemIP'], connInfo['delayFactor'])
+						a = self.routerLoginSsh(IP_LOCALHOST, connInfo['localPort'], connInfo['systemIP'], connInfo['delayFactor'], connInfo['deviceType'])
 					else:
-						a = self.routerLoginSsh(connInfo['systemIP'], connInfo['remotePort'], connInfo['systemIP'], connInfo['delayFactor'])
+						a = self.routerLoginSsh(connInfo['systemIP'], connInfo['remotePort'], connInfo['systemIP'], connInfo['delayFactor'], connInfo['deviceType'])
 
 					connInfo['conn2rtr']     = a[0]
 					connInfo['aluLogged']    = a[1]
@@ -1078,7 +1080,7 @@ class myConnection(threading.Thread):
 				
 		return (aluLogged,aluLogUser,aluLogReason,tempPass)
 
-	def routerLoginSsh(self, ip, port, systemIP, delayFactor):
+	def routerLoginSsh(self, ip, port, systemIP, delayFactor, deviceType):
 
 		conn2rtr     = -1
 		aluLogged    = -1
@@ -1095,9 +1097,7 @@ class myConnection(threading.Thread):
 				tempPass = self.ROUTER_USER[index][1]
 
 				try:
-					#SSHClient.connect(hostname=ip, port=port, username=tempUser, password=tempPass)
-					#conn2rtr = ConnectHandler(device_type="nokia_sros", host=ip, port=port, username=tempUser, password=tempPass, timeout=10, banner_timeout=30)
-					conn2rtr = ConnectHandler(device_type="nokia_sros", host=ip, port=port, username=tempUser, password=tempPass, global_delay_factor=delayFactor)
+					conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, global_delay_factor=delayFactor)
 					aluLogged    = 1
 					aluLogReason = "LoggedOk"
 					aluLogUser   = tempUser
@@ -1497,6 +1497,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-df' ,'--delayFactor',   type=float, help='SSH delay factor. Default=1', default=1,)
 	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
 	parser1.add_argument('-ct', '--clientType',    type=str, help='Connection type. Default=tel', default='tel', choices=['tel','ssh'])
+	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros'])
 	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-hoe','--haltOnError',   type=str, help='If using --strictOrder, halts if error found on execution. Default=no', default='no', choices=['no','yes'])
@@ -1523,6 +1524,7 @@ if __name__ == '__main__':
 		strictOrder         = args.strictOrder,
 		haltOnError         = args.haltOnError,
 		inventoryFile       = args.inventoryFile,
+		deviceType          = args.deviceType,
 	)
 
 	### Rady to go ...
