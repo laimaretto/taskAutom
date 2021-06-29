@@ -81,8 +81,8 @@ ALU_HOSTNAME_SSH          = "(A:|B:)(.+)(>|#)"
 ALU_PROMPT_FTP            = [b"ftp>"]
 ALU_MAJOR_ERROR_LIST      = [b"FAILED:",b"invalid token",b"ERROR:",b"not allowed",b"Error"]
 ALU_MINOR_ERROR_LIST	  = [b"MINOR:"]
-ALU_START_SCRIPT 		  = "SCRIPT_NONO_START"
-ALU_FIN_SCRIPT			  = "SCRIPT_NONO_FIN"
+ALU_START_SCRIPT 		  = "# SCRIPT_NONO_START"
+ALU_FIN_SCRIPT			  = "# SCRIPT_NONO_FIN"
 
 # --- Extras
 CH_CR					  = "\n"
@@ -573,7 +573,7 @@ def renderCliLine(router, dictParam, mod):
 	if dictParam['outputJob'] == 2:	
 
 		if len(dictParam['cronTime']) == 0:
-			aluCliLine = "\necho " + ALU_START_SCRIPT + "\n/environment no more\n" + aluCliLine + "\nexit all\necho " + ALU_FIN_SCRIPT
+			aluCliLine = "\n" + ALU_START_SCRIPT + "\n/environment no more\n" + aluCliLine + "\nexit all\n" + ALU_FIN_SCRIPT
 
 		return systemIP, aluCliLine
 
