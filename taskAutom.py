@@ -72,22 +72,35 @@ ALU_PROMPT_LOGIN          = [b"Login:"]
 ALU_PROMPT_FTP_LOGIN      = [b"220 FTP server ready"]
 ALU_PROMPT_FTP_BIN_MODE   = [b"binary mode"]
 ALU_PROMPT_FTP_TXFER      = [b"226 Transfer complete"]
+ALU_PROMPT_FTP            = [b"ftp>"]
+
 ALU_PROMPT_PASS           = [b"Password:"]
 ALU_PROMPT                = [b"(A:|B:)(.+)(>|#)"]
+
 ALU_TIMOS_LOGIN           = [b"(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})"]
-ALU_TIMOS_SSH             = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})"
 ALU_HOSTNAME              = [b"(A:|B:)(.+)(>|#)"]
-ALU_HOSTNAME_SSH          = "(A:|B:)(.+)(>|#)"
-ALU_PROMPT_FTP            = [b"ftp>"]
+
 ALU_MAJOR_ERROR_LIST      = [b"FAILED:",b"invalid token",b"ERROR:",b"not allowed",b"Error"]
 ALU_MINOR_ERROR_LIST	  = [b"MINOR:"]
-ALU_START_SCRIPT 		  = "# SCRIPT_NONO_START"
-ALU_FIN_SCRIPT			  = "# SCRIPT_NONO_FIN"
 
 # --- Extras
 CH_CR					  = "\n"
 CH_COMA 				  = ","
 LOG_GLOBAL                = []
+
+# - Parameters per vendor
+DICT_VENDOR = dict(
+	nokia_sros=dict(
+		START_SCRIPT   = "# SCRIPT_NONO_START",
+		FIRST_LINE     = "\n/environment no more\n",
+		LAST_LINE      = "\nexit all\n",
+		FIN_SCRIPT     = "# SCRIPT_NONO_FIN",
+		VERSION 	   = "show version", # no \n in the end
+		VERSION_REGEX  = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
+		HOSTNAME       = ["show system info | match Name"], # no \n in the end
+		HOSTNAME_REGEX = "(A:|B:)(.+)(>|#)",
+	),
+)
 
 ####
 
@@ -573,7 +586,9 @@ def renderCliLine(router, dictParam, mod):
 	if dictParam['outputJob'] == 2:	
 
 		if len(dictParam['cronTime']) == 0:
-			aluCliLine = "\n" + ALU_START_SCRIPT + "\n/environment no more\n" + aluCliLine + "\nexit all\n" + ALU_FIN_SCRIPT
+			
+			pass
+			#aluCliLine = "\n" + ALU_START_SCRIPT + ALU_FIRST_LINE + aluCliLine + ALU_LAST_LINE + ALU_FIN_SCRIPT
 
 		return systemIP, aluCliLine
 
@@ -591,7 +606,7 @@ class myConnection(threading.Thread):
 
 		threading.Thread.__init__(self)
 		self.num 			  = thrdNum
-		self.datos 			  = config_line
+		self.datos 			  = DICT_VENDOR[dictParam['deviceType']]['START_SCRIPT'] + DICT_VENDOR[dictParam['deviceType']]['FIRST_LINE'] + config_line + DICT_VENDOR[dictParam['deviceType']]['LAST_LINE'] + DICT_VENDOR[dictParam['deviceType']]['FIN_SCRIPT']
 		self.outputJob 	      = dictParam['outputJob']
 		self.DIRECTORY_LOGS   = dictParam['DIRECTORY_LOGS']
 		self.telnetTimeout    = dictParam['telnetTimeout']
@@ -669,8 +684,8 @@ class myConnection(threading.Thread):
 
 		if self.connInfo['conn2rtr'] != -1 and self.connInfo['aluLogged'] == 1:
 			
-			self.connInfo['timos']      = self.fncAuxGetVal(self.connInfo['conn2rtr'], self.connInfo['clientType'], 'timos')
-			self.connInfo['hostname']   = self.fncAuxGetVal(self.connInfo['conn2rtr'], self.connInfo['clientType'], 'hostname')
+			self.connInfo['timos']      = self.fncAuxGetVal(self.connInfo, 'timos')
+			self.connInfo['hostname']   = self.fncAuxGetVal(self.connInfo, 'hostname')
 			self.connInfo['timosMajor'] = int(self.connInfo['timos'].split("-")[2].split(".")[0])
 			
 			if self.outputJob == 2:
@@ -759,15 +774,15 @@ class myConnection(threading.Thread):
 
 			return output
 
-	def fncAuxGetVal(self, conn2rtr, clientType, what):
+	def fncAuxGetVal(self, connInfo, what):
 
-		if clientType == 'tel':
+		if connInfo['clientType'] == 'tel':
 
 			if what == "timos":
 
 				inText = "show version\n"	
-				self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, conn2rtr, clientType)
-				rx     = conn2rtr.expect(ALU_TIMOS_LOGIN)
+				self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
+				rx     = connInfo['conn2rtr'].expect(ALU_TIMOS_LOGIN)
 				timos  = rx[1].groups()[0].decode()
 
 				return timos
@@ -775,29 +790,37 @@ class myConnection(threading.Thread):
 			elif what == "hostname":
 
 				inText = "\n"
-				self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, conn2rtr, clientType)
-				rx     = conn2rtr.expect(ALU_HOSTNAME)
+				self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
+				rx     = connInfo['conn2rtr'].expect(ALU_HOSTNAME)
 				hostname = rx[1].groups()[1].decode()
 
 				return hostname	
 
-		elif clientType == 'ssh':
+		elif connInfo['clientType'] == 'ssh':
 
 			if what == "timos":
 
-				inText = "show version"
-				rx     = self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, conn2rtr, clientType)
-				match  = re.compile(ALU_TIMOS_SSH).search(rx)
-				timos  = match.groups()[0]
+				inText  = DICT_VENDOR[connInfo['deviceType']]['VERSION']
+				rx      = self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
+				inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
+				match   = re.compile(inRegex).search(rx)
+				try:
+					timos   = match.groups()[0]
+				except:
+					timos   = "not-matched"
 
 				return timos
 
 			elif what == 'hostname':
 
-				inText = ["show system info | match Name"]
-				rx     = self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, conn2rtr, clientType)
-				match  = re.compile(ALU_HOSTNAME_SSH).search(rx)
-				hostname = match.groups()[1]
+				inText   = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME']
+				rx       = self.fncWriteToConnection(inText, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
+				inRegex  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
+				match    = re.compile(inRegex).search(rx)
+				try:
+					hostname = match.groups()[1]
+				except:
+					hostname = "not-matched"
 
 				return hostname
 
@@ -1153,6 +1176,7 @@ class myConnection(threading.Thread):
 		tStart 		 = time.time()
 		outRx  		 = ""
 		aluLogReason = ""
+		FIN_SCRIPT   = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
 
 		if connInfo['cronTime']:
 			fncPrintConsole(self.strConn + "Establishing script with CRON...", show=1)
@@ -1164,9 +1188,9 @@ class myConnection(threading.Thread):
 
 			if connInfo['clientType'] == 'tel':		
 				self.fncWriteToConnection(datos, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
-				outRx = connInfo['conn2rtr'].read_until(ALU_FIN_SCRIPT.encode(), telnetTimeout)
+				outRx = connInfo['conn2rtr'].read_until(FIN_SCRIPT.encode(), telnetTimeout)
 				outRx = outRx.decode()
-			elif connInfo['clientType'] == 'ssh':					
+			elif connInfo['clientType'] == 'ssh':
 				datos = datos.split('\n')[1:]
 				outRx = self.fncWriteToConnection(datos, ALU_TELNET_WRITE_TIMEOUT, connInfo['conn2rtr'], connInfo['clientType'])
 
@@ -1189,7 +1213,7 @@ class myConnection(threading.Thread):
 			str_major_error_list = [x.decode() for x in ALU_MAJOR_ERROR_LIST]
 			str_minor_error_list = [x.decode() for x in ALU_MINOR_ERROR_LIST]
 			
-			if ALU_FIN_SCRIPT not in outRx:
+			if FIN_SCRIPT not in outRx:
 				aluLogReason = "ReadTimeout"	
 				runStatus    = -1
 			elif any(word in outRx for word in str_major_error_list):
@@ -1243,7 +1267,6 @@ class myConnection(threading.Thread):
 		fncPrintConsole(strConn + "logData: " + str(aluCsvLine))
 
 		LOG_GLOBAL.append(aluCsvLine)
-
 
 	def routerLogout(self, connInfo):
 
@@ -1481,7 +1504,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.9.4' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.9.5' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-csv','--csvFile',       type=str, required=True, help='CSV File with parameters',)
