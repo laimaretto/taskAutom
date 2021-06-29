@@ -1,5 +1,12 @@
 # Versions #
 
+## [7.9.5] - 2021-06-28
+
+logData
+
+- Better handling of logData.
+- Better support for vendors other than Nokia (nokia_sros)
+
 ## [7.9] - 2021-06-16
 
 Inventory File
