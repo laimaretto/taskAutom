@@ -1,5 +1,11 @@
 # Versions #
 
+## [7.9.6] - 2021-06-29
+
+logData
+
+- time was being reported as string; now as float.
+
 ## [7.9.5] - 2021-06-28
 
 logData

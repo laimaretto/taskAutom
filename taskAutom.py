@@ -91,10 +91,10 @@ LOG_GLOBAL                = []
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
-		START_SCRIPT   = "# SCRIPT_NONO_START",
+		START_SCRIPT   = "# SCRIPT_NONO_START", # no \n in the end
 		FIRST_LINE     = "\n/environment no more\n",
 		LAST_LINE      = "\nexit all\n",
-		FIN_SCRIPT     = "# SCRIPT_NONO_FIN",
+		FIN_SCRIPT     = "# SCRIPT_NONO_FIN", # no \n in the end
 		VERSION 	   = "show version", # no \n in the end
 		VERSION_REGEX  = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME       = ["show system info | match Name"], # no \n in the end
@@ -175,22 +175,21 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 		#routers = [x for x in LOG_GLOBAL]
 		routers = LOG_GLOBAL
+		columns=['DateTime','logInfo','Plugin','IP','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','servers']
+		df = pd.DataFrame(routers,columns=columns)
 
-		timeLog = [float(row[len(row)-1]) for row in routers]
+		#timeLog = [float(row[len(row)-1]) for row in routers['time']]
 
 		outTxt = outTxt + "\nTiming:\n"
 
+
+		outTxt = outTxt + "  timeMin                     " + fncFormatTime(df['time'].min()) + "s" + '\n'
+		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(df['time'].mean()) + "s" + '\n'
+		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(df['time'].max()) + "s" + '\n'
 		outTxt = outTxt + "  timeTotal:                  " + fncFormatTime(timeTotal) + "s" + '\n'
-		outTxt = outTxt + "  timeMin                     " + fncFormatTime(min(timeLog)) + "s" + '\n'
-		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(sum(timeLog)/len(routers)) + "s" + '\n'
-		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(max(timeLog)) + "s" + '\n'
 		outTxt = outTxt + "  timeTotal/Routers:          " + fncFormatTime(timeTotal/len(routers)) + "s" + '\n'
 
 		outTxt = outTxt + separator + '\n'
-
-		columns=['DateTime','logInfo','Plugin','IP','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','servers']
-
-		df = pd.DataFrame(routers,columns=columns)
 
 		df['threads']     = dictParam['progNumThreads']
 
@@ -1223,10 +1222,6 @@ class myConnection(threading.Thread):
 			else:
 				aluLogReason = "SendSuccess"
 
-			# if abs(tDiff - telnetTimeout) <= ALU_TIME_DIFF:
-			# 	aluLogReason = "TelnetReadTimeOut"
-			# 	runStatus = -1
-
 		fncPrintConsole(self.strConn + "Time: " + fncFormatTime(tDiff) + ". Result: " + aluLogReason, show=1)
 
 		return(aluLogReason, tDiff, runStatus, outRx)
@@ -1258,7 +1253,7 @@ class myConnection(threading.Thread):
 			connInfo['clientType'],
 			str(len(datos.split('\n'))),
 			str(len(outRx.split('\n'))),
-			fncFormatTime(tDiff),
+			float(fncFormatTime(tDiff)),
 			str(connInfo['telnetTimeout']),
 			str(connInfo['delayFactor']),
 			str(lenServers),
