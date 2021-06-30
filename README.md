@@ -87,8 +87,8 @@ By default, `taskAutom` connects to each router that exists inside the CSV data 
 
 ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost
 --|--------|--------|------------|-------------|-----------|----------|--------
-1.1.1.1|user1|pass1|yes||0.5|ssh|server1
-2.2.2.2|user2|pass2|no|90||tel|
+10.0.0.1|user1|pass1|yes||0.5|ssh|server1
+10.0.0.2|user2|pass2|no|90||tel|
 
 If fieds in the CSV are left empty, those are replaced by default values.
 
