@@ -1,5 +1,17 @@
 # Versions #
 
+## [7.10.0] - 2021-07-10
+
+- New parameter `pluginType`, either `show` or `config` according Netmiko's [documentation](https://ktbyers.github.io/netmiko/docs/netmiko/#netmiko.BaseConnection.
+send_command)
+    - Default set to `config`.
+- New parameter `max_loops` that in conjuntion with `delayt_factor` and `pluginType` helps in obtaining long output data.
+- Inside `fncWriteToConnection(self, inText, connInfo)` distinguish between `show` and `config` commands so as to use `send_command()` or `send_config_set()` respetively.
+    - This will help further to obatin show output data as JSON format.
+- Using `connInfo` as input paramter for many of the internal methods of the connect class.
+- Inside `routerLoginSsh()` using `fast_cli=False` inside the connection handler.
+- Change of default cient type to `ssh`.
+
 ## [7.9.6] - 2021-06-29
 
 logData
