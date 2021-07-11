@@ -85,9 +85,9 @@ def construir_cliLine(m, datos, mop=None):
 
 By default, `taskAutom` connects to each router that exists inside the CSV data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
-ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost
---|--------|--------|------------|-------------|-----------|----------|--------
-10.0.0.1|user1|pass1|yes||0.5|ssh|server1
+ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost|max_loops
+--|--------|--------|------------|-------------|-----------|----------|--------|---------
+10.0.0.1|user1|pass1|yes||0.5|ssh|server1|1000
 10.0.0.2|user2|pass2|no|90||tel|
 
 If fieds in the CSV are left empty, those are replaced by default values.

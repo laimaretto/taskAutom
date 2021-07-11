@@ -46,8 +46,8 @@ from socket import timeout
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
 
-logging.basicConfig(filename='test.log', level=logging.DEBUG)
-logger = logging.getLogger("netmiko")
+#logging.basicConfig(filename='test.log', level=logging.DEBUG)
+#logger = logging.getLogger("netmiko")
 
 
 
@@ -80,9 +80,6 @@ ALU_PROMPT                = [b"(A:|B:)(.+)(>|#)"]
 ALU_TIMOS_LOGIN           = [b"(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})"]
 ALU_HOSTNAME              = [b"(A:|B:)(.+)(>|#)"]
 
-ALU_MAJOR_ERROR_LIST      = [b"FAILED:",b"invalid token",b"ERROR:",b"not allowed",b"Error"]
-ALU_MINOR_ERROR_LIST	  = [b"MINOR:"]
-
 # --- Extras
 CH_CR					  = "\n"
 CH_COMA 				  = ","
@@ -98,7 +95,9 @@ DICT_VENDOR = dict(
 		VERSION 	   = "show version", # no \n in the end
 		VERSION_REGEX  = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX = "(A:|B:)(.+)(>|#)",
-		SHOW_REGEX     = "(\/show|show)\s.+"
+		SHOW_REGEX     = "(\/show|show)\s.+",
+		MAJOR_ERROR_LIST = [b"FAILED:",b"invalid token",b"ERROR:",b"not allowed",b"Error"],
+		MINOR_ERROR_LIST = [b"MINOR:"],
 	),
 )
 
@@ -117,6 +116,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	outTxt = outTxt + "Global Parameters:\n"
 
 	outTxt = outTxt + "  Template File:              " + dictParam['pyFile'] + '\n'
+	outTxt = outTxt + "  Template Type:              " + dictParam['pluginType'] + '\n'
 	outTxt = outTxt + "  CSV File:                   " + dictParam['csvFile'] + '\n'
 	outTxt = outTxt + "  Text File:                  " + "job0_" + dictParam['pyFile'] + ".txt" + '\n'
 
@@ -185,7 +185,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(df['time'].mean()) + "s" + '\n'
 		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(df['time'].max()) + "s" + '\n'
 		outTxt = outTxt + "  timeTotal:                  " + fncFormatTime(timeTotal) + "s" + '\n'
-		outTxt = outTxt + "  timeTotal/Routers:          " + fncFormatTime(timeTotal/len(routers)) + "s" + '\n'
+		outTxt = outTxt + "  timeTotal/totalRouters:     " + fncFormatTime(timeTotal/len(routers)) + "s" + '\n'
 
 		outTxt = outTxt + separator + '\n'
 
@@ -734,7 +734,7 @@ class myConnection(threading.Thread):
 
 					fncPrintConsole(self.strConn + str(self.connInfo['aluLogReason']))
 
-		self.logData(self.connInfo, self.num, self.tDiff, self.ALU_FILE_OUT_CSV, self.outRx, self.fRx, self.strConn, self.datos, self.logInfo, self.LOG_TIME, self.plugin)
+		self.logData(self.connInfo, self.num, self.tDiff, self.outRx, self.fRx, self.strConn, self.datos, self.logInfo, self.LOG_TIME, self.plugin)
 
 		#######################
 		# closing connections #
@@ -1201,7 +1201,9 @@ class myConnection(threading.Thread):
 		tStart 		 = time.time()
 		outRx  		 = ""
 		aluLogReason = ""
-		FIN_SCRIPT   = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
+		fin_script   = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
+		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
+		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
 
 		if connInfo['cronTime']:
 			fncPrintConsole(self.strConn + "Establishing script with CRON...", show=1)
@@ -1213,7 +1215,7 @@ class myConnection(threading.Thread):
 
 			if connInfo['clientType'] == 'tel':		
 				self.fncWriteToConnection(datos, connInfo)
-				outRx = connInfo['conn2rtr'].read_until(FIN_SCRIPT.encode(), connInfo['telnetTimeout'])
+				outRx = connInfo['conn2rtr'].read_until(fin_script.encode(), connInfo['telnetTimeout'])
 				outRx = outRx.decode()
 			elif connInfo['clientType'] == 'ssh':
 				datos = datos.split('\n')
@@ -1226,8 +1228,8 @@ class myConnection(threading.Thread):
 			aluLogReason = "EOFError"
 			runStatus = -1
 		except Exception as e:
-			#aluLogReason = "GeneralError"
-			aluLogReason = str(e)
+			aluLogReason = "ConnectionGeneralError"
+			#aluLogReason = str(e)
 			runStatus = -1
 
 		tEnd  = time.time()
@@ -1236,10 +1238,10 @@ class myConnection(threading.Thread):
 		## Analizing output only if writing to connection was successfull
 		if aluLogReason == "":
 
-			str_major_error_list = [x.decode() for x in ALU_MAJOR_ERROR_LIST]
-			str_minor_error_list = [x.decode() for x in ALU_MINOR_ERROR_LIST]
+			str_major_error_list = [x.decode() for x in major_error_list]
+			str_minor_error_list = [x.decode() for x in minor_error_list]
 			
-			if FIN_SCRIPT not in outRx:
+			if fin_script not in outRx:
 				aluLogReason = "ReadTimeout"	
 				runStatus    = -1
 			elif any(word in outRx for word in str_major_error_list):
@@ -1253,7 +1255,7 @@ class myConnection(threading.Thread):
 
 		return(aluLogReason, tDiff, runStatus, outRx)
 
-	def logData(self, connInfo, connId, tDiff, ALU_FILE_OUT_CSV, outRx, fRx, strConn, datos, logInfo, LOG_TIME, plugin):
+	def logData(self, connInfo, connId, tDiff, outRx, fRx, strConn, datos, logInfo, LOG_TIME, plugin):
 
 		if connInfo['aluLogged'] == 1:
 			fRx.write(outRx)
@@ -1545,7 +1547,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-to' ,'--telnetTimeout', type=int, help='Telnet read Timeout [sec]. Default=90', default=90,)
 	parser1.add_argument('-tw' ,'--telnetWriteTimeout', type=int, help='Telnet write Timeout [sec]. DO NOT MODIFY. Default=0', default=0,)
 	parser1.add_argument('-df' ,'--delayFactor',   type=float, help='SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1', default=1,)
-	parser1.add_argument('-sml' ,'--sshMaxLoops',    type=float, help='SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=1500', default=1500)
+	parser1.add_argument('-sml' ,'--sshMaxLoops',    type=float, help='SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000', default=5000)
 	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
 	parser1.add_argument('-ct', '--clientType',    type=str, help='Connection type. Default=ssh', default='ssh', choices=['tel','ssh'])
 	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros'])
