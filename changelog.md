@@ -1,5 +1,10 @@
 # Versions #
 
+## [7.10.1] - 2021-07-29
+
+- New option `cmdVerify` with default `yes`.
+    - This is enabled by default and should be used whenever dealing with confi-like commands. See [here](https://github.com/ktbyers/netmiko/issues/2429) 
+
 ## [7.10.0] - 2021-07-10
 
 - Inside `fncWriteToConnection(self, inText, connInfo)` distinguish between `show` and `config` commands so as to use `send_command()` or `send_config_set()` respetively.

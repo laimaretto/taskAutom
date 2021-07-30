@@ -46,8 +46,8 @@ from socket import timeout
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
 
-#logging.basicConfig(filename='test.log', level=logging.DEBUG)
-#logger = logging.getLogger("netmiko")
+# logging.basicConfig(filename='debug.log', level=logging.DEBUG)
+# logger = logging.getLogger("netmiko")
 
 
 
@@ -126,6 +126,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	outTxt = outTxt + "  Inventory file              " + str(dictParam['inventoryFile']) + "\n"
 
 
+	outTxt = outTxt + "  Verify Commands:            " + dictParam['cmdVerify'] + '\n'	
 	outTxt = outTxt + "  Strict Order:               " + dictParam['strictOrder'] + '\n'
 
 	if dictParam['strictOrder'] == 'yes':
@@ -175,7 +176,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + separator + '\n'
 
 		routers = LOG_GLOBAL
-		columns=['DateTime','logInfo','Plugin','pluginType','IP','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','sshMaxLoops','servers']
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','sshMaxLoops','servers']
 		df = pd.DataFrame(routers,columns=columns)
 
 		outTxt = outTxt + "\nTiming:\n"
@@ -637,6 +638,7 @@ class myConnection(threading.Thread):
 			'strictOrder':dictParam['strictOrder'],
 			'deviceType':dictParam['deviceType'],
 			'pluginType':dictParam['pluginType'],
+			'cmdVerify':dictParam['cmdVerify'],
 		}
 
 		# Do we you use jumpHosts?
@@ -760,11 +762,16 @@ class myConnection(threading.Thread):
 
 		clientType         = connInfo['clientType']
 		conn2rtr           = connInfo['conn2rtr']
-		delayFactor        = connInfo['delayFactor']
 		telnetWriteTimeout = connInfo['telnetWriteTimeout']
 		pluginType         = connInfo['pluginType']
 
-		max_loops          = connInfo['sshMaxLoops']
+		maxLoops           = connInfo['sshMaxLoops']
+		delayFactor        = connInfo['delayFactor']
+
+		if connInfo['cmdVerify'] == 'yes':
+			cmdVerify = True
+		else:
+			cmdVerify = False
 
 		### Writes to a connection. 
 		# For telnet connections, stream needs to be encoded before doing it...
@@ -781,15 +788,15 @@ class myConnection(threading.Thread):
 			if type(inText) == type([]):
 
 				if pluginType == 'config':
-					output = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=False, delay_factor=delayFactor, max_loops=max_loops)
+					output = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
 				elif pluginType == 'show':
 					output = ''
 					for cmd in inText:
-						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, delay_factor=delayFactor, max_loops=max_loops)
+						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, delay_factor=delayFactor, max_loops=maxLoops)
 			
 			elif type(inText) == type(''):
 
-				output = conn2rtr.send_command(inText, delay_factor=delayFactor, max_loops=max_loops)
+				output = conn2rtr.send_command(inText, delay_factor=delayFactor, max_loops=maxLoops)
 
 			return output
 
@@ -853,7 +860,7 @@ class myConnection(threading.Thread):
 			[dict]: [Updated connInfo dictionary]
 		"""
 
-		### Creates connection to router
+		### SSH Tunnel
 
 		if connInfo['useSSHTunnel'] == 'yes':
 
@@ -873,6 +880,8 @@ class myConnection(threading.Thread):
 			connInfo['controlPlaneAccess'] 	= 1	
 			connInfo['localPort'] 			= connInfo['remotePort']
 			connInfo['sshServer']    		= -1
+
+		### Connect to router
 
 		if connInfo['controlPlaneAccess'] == 1:
 
@@ -899,10 +908,7 @@ class myConnection(threading.Thread):
 			elif connInfo['clientType'] == 'ssh':
 
 				try:
-					if connInfo['useSSHTunnel'] == 'yes':
-						a = self.routerLoginSsh(IP_LOCALHOST, connInfo['localPort'], connInfo['systemIP'], connInfo['delayFactor'], connInfo['deviceType'])
-					else:
-						a = self.routerLoginSsh(connInfo['systemIP'], connInfo['remotePort'], connInfo['systemIP'], connInfo['delayFactor'], connInfo['deviceType'])
+					a = self.routerLoginSsh(connInfo)
 
 					connInfo['conn2rtr']     = a[0]
 					connInfo['aluLogged']    = a[1]
@@ -1128,7 +1134,7 @@ class myConnection(threading.Thread):
 				
 		return (aluLogged,aluLogUser,aluLogReason,tempPass)
 
-	def routerLoginSsh(self, ip, port, systemIP, delayFactor, deviceType):
+	def routerLoginSsh(self, connInfo):
 
 		conn2rtr     = -1
 		aluLogged    = -1
@@ -1137,35 +1143,47 @@ class myConnection(threading.Thread):
 		aluLogReason = "N/A"
 		index        = 0
 
-		while aluLogged == -1:
+		systemIP     = connInfo['systemIP']
+		delayFactor  = connInfo['delayFactor']
+		deviceType   = connInfo['deviceType']
 
-			if index < len(self.ROUTER_USER):
+		if connInfo['useSSHTunnel'] == 'yes':
+			ip   = IP_LOCALHOST
+			port = connInfo['localPort']
+		else:
+			ip   = connInfo['systemIP']
+			port = connInfo['remotePort']
 
-				tempUser = self.ROUTER_USER[index][0]
-				tempPass = self.ROUTER_USER[index][1]
+		while aluLogged == -1 or index < len(self.ROUTER_USER):
 
-				try:
-					conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli = False)
-					aluLogged    = 1
-					aluLogReason = "LoggedOk"
-					aluLogUser   = tempUser
-					aluPass      = tempPass
-				except:
-					index 	     = index + 1
-					aluLogUser   = tempUser
-					aluLogReason = "SSHFailedConnection"
-					aluLogged 	 = -1
-					aluPass      = "PassN/A"
-					fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
+			#if index < len(self.ROUTER_USER):
 
-			else:
-				# We've tryed all the user/pass. Quitting.
-				aluLogUser 	 = tempUser
-				aluLogReason = "MaxLoginReached"
+			tempUser = self.ROUTER_USER[index][0]
+			tempPass = self.ROUTER_USER[index][1]
+			index 	 = index + 1
+
+			try:
+				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli = False)
+				aluLogged    = 1
+				aluLogReason = "LoggedOk"
+				aluLogUser   = tempUser
+				aluPass      = tempPass
+			except Exception as e:
+				aluLogUser   = tempUser
+				aluLogReason = "SSHFailedConnection"
+				aluLogReason = str(e)
 				aluLogged 	 = -1
 				aluPass      = "PassN/A"
 				fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-				break
+
+			# else:
+			# 	# We've tryed all the user/pass. Quitting.
+			# 	aluLogUser 	 = tempUser
+			# 	aluLogReason = "MaxLoginReached"
+			# 	aluLogged 	 = -1
+			# 	aluPass      = "PassN/A"
+			# 	fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
+			# 	break
 				
 		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)
 
@@ -1228,8 +1246,8 @@ class myConnection(threading.Thread):
 			aluLogReason = "EOFError"
 			runStatus = -1
 		except Exception as e:
-			aluLogReason = "ConnectionGeneralError"
-			#aluLogReason = str(e)
+			#aluLogReason = "ConnectionGeneralError"
+			aluLogReason = str(e)
 			runStatus = -1
 
 		tEnd  = time.time()
@@ -1273,6 +1291,7 @@ class myConnection(threading.Thread):
 			logInfo,
 			plugin,
 			connInfo['pluginType'],
+			connInfo['cmdVerify'],
 			connInfo['systemIP'],
 			connInfo['hostname'],
 			connInfo['username'],
@@ -1530,7 +1549,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.10.0' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.10.1' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-csv','--csvFile',       type=str, required=True, help='CSV File with parameters',)
@@ -1553,6 +1572,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros'])
 	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-hoe','--haltOnError',   type=str, help='If using --strictOrder, halts if error found on execution. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-cv', '--cmdVerify',     type=str, help='Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
 
 	args = parser1.parse_args()
 
@@ -1580,6 +1600,7 @@ if __name__ == '__main__':
 		inventoryFile       = args.inventoryFile,
 		deviceType          = args.deviceType,
 		pluginType          = args.pluginType,
+		cmdVerify           = args.cmdVerify,
 	)
 
 	### Rady to go ...
