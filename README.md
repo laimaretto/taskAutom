@@ -85,9 +85,9 @@ def construir_cliLine(m, datos, mop=None):
 
 1) When writing plugins, it is recommended not to use abbreviated commands. This will potentially led to errors. For example: `/configure rout int system add 10.0.0.1/32` is discouraged. Better off use `/configure router interface system address 10.0.0.1/32`.
 
-2) Even though a plugin of type show or config will do the job, it is better to try to accommodate plugins so that they reflect they purpose. Then use the configuration parameter `--pluginType=[show|config]` to reflect the spirit of the plugin.
+2) Common practice: it is better to try to accommodate plugins so that they reflect they purpose. Then use the configuration parameter `--pluginType=[show|config]` to reflect the spirit of the plugin.
 
-3) Whean dealing with config like plugins, make sure the option `--cmdVerify=yes` and `--pluginType=yes`. Only disable `cmdVerify` if facing problems.
+3) In general, use `--cmdVerify=yes`. Only disable `cmdVerify` if facing problems.
 
 #### Inventory
 

@@ -3,7 +3,7 @@
 ## [7.10.1] - 2021-07-29
 
 - New option `cmdVerify` with default `yes`.
-    - This is enabled by default and should be used whenever dealing with confi-like commands. See [here](https://github.com/ktbyers/netmiko/issues/2429) 
+    - This is enabled by default and should be used, especially, whenever dealing with config-like commands. See [here](https://github.com/ktbyers/netmiko/issues/2429) 
 
 ## [7.10.0] - 2021-07-10
 

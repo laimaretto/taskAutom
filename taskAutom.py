@@ -792,7 +792,7 @@ class myConnection(threading.Thread):
 				elif pluginType == 'show':
 					output = ''
 					for cmd in inText:
-						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, delay_factor=delayFactor, max_loops=maxLoops)
+						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
 			
 			elif type(inText) == type(''):
 
@@ -1473,9 +1473,8 @@ def fncRun(dictParam):
 	# Strict Order
 	if dictParam['strictOrder'] == 'yes':
 		dictParam['progNumThreads'] = 1
-
-	# Parsing Data
-	if dictParam['strictOrder'] == 'no':
+	
+	elif dictParam['strictOrder'] == 'no':
 		routers = sort_order(routers)
 
 	timeTotalStart 	= time.time()
