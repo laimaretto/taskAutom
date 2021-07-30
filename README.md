@@ -81,6 +81,14 @@ def construir_cliLine(m, datos, mop=None):
 	return cfg
 ```
 
+###### Notes on plugin
+
+1) When writing plugins, it is recommended not to use abbreviated commands. This will potentially led to errors. For example: `/configure rout int system add 10.0.0.1/32` is discouraged. Better off use `/configure router interface system address 10.0.0.1/32`.
+
+2) Common practice: it is better to try to accommodate plugins so that they reflect they purpose. Then use the configuration parameter `--pluginType=[show|config]` to reflect the spirit of the plugin.
+
+3) In general, use `--cmdVerify=yes`. Only disable `cmdVerify` if facing problems.
+
 #### Inventory
 
 By default, `taskAutom` connects to each router that exists inside the CSV data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
@@ -132,30 +140,40 @@ optional arguments:
                         CSV File with parameters
   -py PYFILE, --pyFile PYFILE
                         PY Template File
+  -u USERNAME, --username USERNAME
+                        Username
+  -th THREADS, --threads THREADS
+                        Number of threads. Default=1
   -log LOGINFO, --logInfo LOGINFO
                         Description for log folder
   -jh JUMPHOSTSFILE, --jumpHostsFile JUMPHOSTSFILE
                         jumpHosts file. Default=servers.yml
   -inv INVENTORYFILE, --inventoryFile INVENTORYFILE
                         inventory.csv file with per router connection parameters. Default=None
+  -pt {show,config}, --pluginType {show,config}
+                        Type of plugin. Default=config
+  -gm {no,yes}, --genMop {no,yes}
+                        Generate MOP. Default=no
   -crt CRONTIME [CRONTIME ...], --cronTime CRONTIME [CRONTIME ...]
                         Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).
-  -u USERNAME, --username USERNAME
-                        Username
-  -th THREADS, --threads THREADS
-                        Number of threads. Default=1
   -to TELNETTIMEOUT, --telnetTimeout TELNETTIMEOUT
-                        Telnet Timeout [sec]. Default=90
+                        Telnet read Timeout [sec]. Default=90
+  -tw TELNETWRITETIMEOUT, --telnetWriteTimeout TELNETWRITETIMEOUT
+                        Telnet write Timeout [sec]. DO NOT MODIFY. Default=0
   -df DELAYFACTOR, --delayFactor DELAYFACTOR
-                        SSH delay factor. Default=1
+                        SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1
+  -sml SSHMAXLOOPS, --sshMaxLoops SSHMAXLOOPS
+                        SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000
   -tun {no,yes}, --sshTunnel {no,yes}
                         Use SSH Tunnel to routers. Default=yes
   -ct {tel,ssh}, --clientType {tel,ssh}
-                        Connection type. Default=tel
-  -gm {no,yes}, --genMop {no,yes}
-                        Generate MOP. Default=no
+                        Connection type. Default=ssh
+  -dt {nokia_sros}, --deviceType {nokia_sros}
+                        Device Type. Default=nokia_sros
   -so {no,yes}, --strictOrder {no,yes}
                         Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no
   -hoe {no,yes}, --haltOnError {no,yes}
                         If using --strictOrder, halts if error found on execution. Default=no
+  -cv {no,yes}, --cmdVerify {no,yes}
+                        Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes
 ```
