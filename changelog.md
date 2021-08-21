@@ -1,5 +1,17 @@
 # Versions #
 
+## [7.11.0] - 2021-08-20
+
+- New option `sshDebug`
+- Info Error Detection
+- `SEND_CMD_REGEX = "#"` for show commands.
+- Excel format supported.
+    - Default is still `csv`.
+- Header supported in input data;
+    - If header is to be used, there must be a column called `ip` for the IP addresses of the routers.
+    - If header is not used, then the first column of the data file will be assumed to hold the IP addresses of the routers (default behavior).
+
+
 ## [7.10.1] - 2021-07-29
 
 - New option `cmdVerify` with default `yes`.
