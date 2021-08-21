@@ -45,12 +45,6 @@ from socket import timeout
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
-
-# logging.basicConfig(filename='debug.log', level=logging.DEBUG)
-# logger = logging.getLogger("netmiko")
-
-
-
 # Variables Login
 IP_LOCALHOST          	 = "127.0.0.1"
 
@@ -84,6 +78,7 @@ ALU_HOSTNAME              = [b"(A:|B:)(.+)(>|#)"]
 CH_CR					  = "\n"
 CH_COMA 				  = ","
 LOG_GLOBAL                = []
+DATA_FILE_IP_CONNECT      = "ip"
 
 # - Parameters per vendor
 DICT_VENDOR = dict(
@@ -96,8 +91,11 @@ DICT_VENDOR = dict(
 		VERSION_REGEX  = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX     = "(\/show|show)\s.+",
+		SEND_CMD_REGEX = "#",
 		MAJOR_ERROR_LIST = [b"FAILED:",b"invalid token",b"ERROR:",b"not allowed",b"Error"],
 		MINOR_ERROR_LIST = [b"MINOR:"],
+		INFO_ERROR_LIST  = [b'INFO:'],
+
 	),
 )
 
@@ -117,7 +115,8 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 	outTxt = outTxt + "  Template File:              " + dictParam['pyFile'] + '\n'
 	outTxt = outTxt + "  Template Type:              " + dictParam['pluginType'] + '\n'
-	outTxt = outTxt + "  CSV File:                   " + dictParam['csvFile'] + '\n'
+	outTxt = outTxt + "  DATA File:                  " + dictParam['data'] + '\n'
+	outTxt = outTxt + "  DATA UseHeader:             " + dictParam['useHeader'] + '\n'
 	outTxt = outTxt + "  Text File:                  " + "job0_" + dictParam['pyFile'] + ".txt" + '\n'
 
 	if dictParam['genMop'] == 'yes':
@@ -245,7 +244,7 @@ def run_mi_thread(i, CliLine, ip, dictParam):
 
 	return aluLogReason
 
-def sort_order(lista):
+def sort_order(data, dictParam):
 	"""[List will be ordered and sorted always by the first field which is the system IP of the router]
 
 	Args:
@@ -255,12 +254,31 @@ def sort_order(lista):
 		[list]: [Ordered List]
 	"""
 
-	lista_sorted 	= sorted(lista, key=itemgetter(0))
-	lista_grouped 	= groupby(lista_sorted, key=itemgetter(0))
-	a = []
-	for i,rou in enumerate(lista_grouped):
-		a.append(list(rou[1]))
-	return a
+	if dictParam['strictOrder'] == 'yes':
+
+		if dictParam['useHeader'] == 'yes':
+			try:
+				routers = list(data[DATA_FILE_IP_CONNECT])
+			except Exception as e:
+				print("No column header " + str(e) + " in file " + dictParam['data'] + ". Quitting...\n")
+				quit()
+		else:
+			routers = list(data[0])
+
+	else:
+
+		if dictParam['useHeader'] == 'yes':
+			try:
+				routers = list(data[DATA_FILE_IP_CONNECT].unique())
+				data    = data.sort_values(by=DATA_FILE_IP_CONNECT)
+			except Exception as e:
+				print("No column header " + str(e) + " in file " + dictParam['data'] + ". Quitting...\n")
+				quit()				
+		else:
+			routers = list(data[0].unique())
+			data    = data.sort_values(by=0)
+
+	return routers, data
 
 def verifyCronTime(cronTime):
 	"""[We verify cronTime before moving on]
@@ -345,8 +363,8 @@ def verifyServers(jumpHostsFile):
 	# If before checking is ok, we create a new dictionary with correlative keys for those values...
 	return servers
 
-def verifyCsv(csvFile):
-	"""[Verify CSV file]
+def verifyData(dictParam):
+	"""[Verify DATA file]
 
 	Args:
 		csvFile ([str]): [Name of CSV file]
@@ -355,18 +373,30 @@ def verifyCsv(csvFile):
 		[list]: [List of Routers]
 	"""
 
-	try:
-		if csvFile.split(".")[-1] == "csv":
-			iFile 		= open(csvFile,"r")
-			csvFile 	= csv.reader(iFile, delimiter=",", quotechar="|")
-			routers 	= list(csvFile)
-			iFile.close()
-		else:
-			print("Missing CSV file. Verify extension of the file to be '.csv'. Quitting...")
+	if dictParam['useHeader'] == 'yes':
+		useHeader = 0
+	else:
+		useHeader = None
+
+	if dictParam['xlsName'] == None:
+	
+		# We have CSV
+		try:
+			routers = pd.read_csv(dictParam['data'], header=useHeader)
+		except Exception as e:
+			print(e)
+			print("Error trying to open file " + dictParam['data'] + ". Quitting...\n")
 			quit()
-	except:
-		print("No CSV file found. Quitting ...")
-		quit()
+	
+	else:
+
+		# We have XLSX
+		try:
+			routers = pd.read_excel(dictParam['data'], sheet_name=dictParam['xlsName'], header=useHeader)
+		except Exception as e:
+			print(e)
+			print("Error trying to open file " + dictParam['data'] + ". Quitting...\n")
+			quit()
 
 	return routers
 
@@ -547,17 +577,14 @@ def renderMop(aluCliLineJob0, pyFile, genMop):
 	with open(job0text,'w') as f:
 		f.write(aluCliLineJob0)
 
-def renderCliLine(router, dictParam, mod):
+def renderCliLine(IPconnect, dictParam, mod, data, i):
 
-	# if strictOrder == yes, the received router vector will be ..
-	# [ip1, par1, par2, ... , parN]
-	# [ip1, par1, par2, ... , parN]
-	# [ip2, par1, par2, ... , parN]
-	# [ip2, par1, par2, ... , parN]
-
-	# if strictOrder == no, the received router vector will be ..
-	# [[ip1, par1, par2, ... , parN],[ip1, par1, par2, ... , parN]]
-	# [[ip2, par1, par2, ... , parN],[ip2, par1, par2, ... , parN]]
+	#              0                         1      2                   3
+	# 1  10.2.102.61    CF129_LABORATORIO_SARM  1/1/1  newDescCron1236-12
+	# 3  10.2.102.61    CF129_LABORATORIO_SARM  1/1/2  newDescCron3456-12
+	# 0  10.2.21.164  CO008_TCA70_SARM_PRUEBAS  1/1/7  newDescCron1236-12
+	# 2  10.2.21.164  CO008_TCA70_SARM_PRUEBAS  1/1/F  newDescCron3456-12
+	# 4  10.2.21.164  CO008_TCA70_SARM_PRUEBAS  1/1/4  newDescCron3456-12
 
 	aluCliLine = ""
 
@@ -567,15 +594,27 @@ def renderCliLine(router, dictParam, mod):
 		mop = 1
 
 	if dictParam['strictOrder'] == 'no':
-		systemIP = router[0][0]
-	else:
-		systemIP = router[0]
 
-	if dictParam['strictOrder'] == 'no':
-		for j,item in enumerate(router):
-			aluCliLine = aluCliLine + mod.construir_cliLine(j,item, mop)
+		if dictParam['useHeader'] == 'yes':
+			data = data[data[DATA_FILE_IP_CONNECT] == IPconnect]
+		else:
+			data = data[data[0] == IPconnect]		
+
+		for j, item in enumerate(data.itertuples()):
+			try:
+				aluCliLine = aluCliLine + mod.construir_cliLine(j, item, mop)
+			except Exception as e:
+				print(e)
+				print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
+				quit()
 	else:
-		aluCliLine = mod.construir_cliLine(0,router, mop)
+
+		try:
+			aluCliLine = mod.construir_cliLine(0, list(data.itertuples())[i], mop)
+		except Exception as e:
+			print(e)
+			print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
+			quit()
 
 	if aluCliLine[-1] == "\n":
 		aluCliLine = aluCliLine[:-1]
@@ -586,7 +625,7 @@ def renderCliLine(router, dictParam, mod):
 			
 			pass
 
-		return systemIP, aluCliLine
+		return aluCliLine
 
 	elif dictParam['outputJob'] == 0:
 
@@ -768,6 +807,8 @@ class myConnection(threading.Thread):
 		maxLoops           = connInfo['sshMaxLoops']
 		delayFactor        = connInfo['delayFactor']
 
+		expectString       = DICT_VENDOR[connInfo['deviceType']]['SEND_CMD_REGEX']
+
 		if connInfo['cmdVerify'] == 'yes':
 			cmdVerify = True
 		else:
@@ -792,11 +833,11 @@ class myConnection(threading.Thread):
 				elif pluginType == 'show':
 					output = ''
 					for cmd in inText:
-						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
 			
 			elif type(inText) == type(''):
 
-				output = conn2rtr.send_command(inText, delay_factor=delayFactor, max_loops=maxLoops)
+				output = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
 
 			return output
 
@@ -1222,6 +1263,7 @@ class myConnection(threading.Thread):
 		fin_script   = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
 		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
 		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
+		info_error_list  = DICT_VENDOR[connInfo['deviceType']]['INFO_ERROR_LIST']
 
 		if connInfo['cronTime']:
 			fncPrintConsole(self.strConn + "Establishing script with CRON...", show=1)
@@ -1258,6 +1300,7 @@ class myConnection(threading.Thread):
 
 			str_major_error_list = [x.decode() for x in major_error_list]
 			str_minor_error_list = [x.decode() for x in minor_error_list]
+			str_info_error_list  = [x.decode() for x in info_error_list]
 			
 			if fin_script not in outRx:
 				aluLogReason = "ReadTimeout"	
@@ -1266,6 +1309,8 @@ class myConnection(threading.Thread):
 				aluLogReason = "MajorFailed"
 			elif any(word in outRx for word in str_minor_error_list):
 				aluLogReason = "MinorFailed"
+			elif any(word in outRx for word in str_info_error_list):
+				aluLogReason = "InfoFailed"
 			else:
 				aluLogReason = "SendSuccess"
 
@@ -1459,8 +1504,8 @@ def fncRun(dictParam):
 	if dictParam['useSSHTunnel'] == 'yes' or dictParam['inventoryFile'] != None:
 		dictParam['jumpHosts'] = verifyServers(dictParam['jumpHostsFile'])
 
-	# CSV File
-	routers = verifyCsv(dictParam['csvFile'])
+	# DATA file
+	data = verifyData(dictParam)
 
 	# Config File
 	mod = verifyPlugin(dictParam['pyFile'])
@@ -1474,15 +1519,21 @@ def fncRun(dictParam):
 	if dictParam['strictOrder'] == 'yes':
 		dictParam['progNumThreads'] = 1
 	
-	elif dictParam['strictOrder'] == 'no':
-		routers = sort_order(routers)
+	# We obatin the list of routers to trigger connections
+	routers, data = sort_order(data, dictParam)
 
+	# We take initial time 
 	timeTotalStart 	= time.time()
 
 	# Generar threads
 	threads_list 	= ThreadPool(dictParam['progNumThreads'])
 	global global_lock
 	global_lock     = threading.Lock()
+
+	## Netmiko Debug
+	if dictParam['sshDebug'] == 'yes':
+		logging.basicConfig(filename='debug.log', level=logging.DEBUG)
+		logger = logging.getLogger("netmiko")
 
 	################
 	# Running...
@@ -1504,15 +1555,15 @@ def fncRun(dictParam):
 
 		###############
 		# Let's run ....
-		for i, router in enumerate(routers):
+		for i, IPconnect in enumerate(routers):
 
-			systemIP, aluCliLine = renderCliLine(router, dictParam, mod)
+			aluCliLine = renderCliLine(IPconnect, dictParam, mod, data, i)
 
 			# running routine
 			if dictParam['strictOrder'] == 'no':
-				threads_list.apply_async(run_mi_thread, args=(i, aluCliLine, systemIP, dictParam))
+				threads_list.apply_async(run_mi_thread, args=(i, aluCliLine, IPconnect, dictParam))
 			else:
-				aluLogReason = run_mi_thread(i, aluCliLine, systemIP, dictParam)
+				aluLogReason = run_mi_thread(i, aluCliLine, IPconnect, dictParam)
 
 				if dictParam['haltOnError'] == 'yes' and aluLogReason not in ['SendSuccess','ReadTimeout']:
 					dictParam['aluLogReason'] = aluLogReason
@@ -1530,14 +1581,14 @@ def fncRun(dictParam):
 
 		aluCliLineJob0  = ""
 
-		for i, router in enumerate(routers):
+		for i, IPconnect in enumerate(routers):
 
-			aluCliLineJob0 = aluCliLineJob0 + renderCliLine(router, dictParam, mod)
+			aluCliLineJob0 = aluCliLineJob0 + renderCliLine(IPconnect, dictParam, mod, data, i)
 
 		verif = verifyConfigFile(aluCliLineJob0)
 
 		if verif != (-1,-1):
-			print("\nWrong config file for router " + str(router) + "\nCheck (n,line,char): " + str(verif) + "\nQuitting...")
+			print("\nWrong config file for router " + str(IPconnect) + "\nCheck (n,line,char): " + str(verif) + "\nQuitting...")
 			quit()			
 
 		renderMop(aluCliLineJob0, dictParam['pyFile'], dictParam['genMop'])
@@ -1548,15 +1599,19 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.10.1' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.0' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
-	parser1.add_argument('-csv','--csvFile',       type=str, required=True, help='CSV File with parameters',)
-	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File',)
+	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
+	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File')
+
+	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-xls' ,'--xlsName',      type=str, help='Excel sheet name')
 
 	parser1.add_argument('-u'  ,'--username',      type=str, help='Username', )
 	parser1.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
 	parser1.add_argument('-log','--logInfo' ,      type=str, help='Description for log folder', )
+
 	parser1.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
 	parser1.add_argument('-inv','--inventoryFile', type=str, help='inventory.csv file with per router connection parameters. Default=None', default=None)
 	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin. Default=config', default='config', choices=['show','config'])
@@ -1572,6 +1627,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-hoe','--haltOnError',   type=str, help='If using --strictOrder, halts if error found on execution. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-cv', '--cmdVerify',     type=str, help='Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
+	parser1.add_argument('-sd', '--sshDebug',      type=str, help='Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no', default='no', choices=['no','yes'])
 
 	args = parser1.parse_args()
 
@@ -1579,7 +1635,10 @@ if __name__ == '__main__':
 
 	dictParam = dict(
 		outputJob 			= args.jobType,
-		csvFile 			= args.csvFile,
+		#csvFile 			= args.csvFile,
+		data                = args.data,
+		xlsName             = args.xlsName,
+		useHeader           = args.useHeader,
 		pyFile              = args.pyFile,
 		username 			= args.username,
 		password 			= None,
@@ -1600,6 +1659,7 @@ if __name__ == '__main__':
 		deviceType          = args.deviceType,
 		pluginType          = args.pluginType,
 		cmdVerify           = args.cmdVerify,
+		sshDebug            = args.sshDebug,
 	)
 
 	### Rady to go ...

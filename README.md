@@ -1,19 +1,23 @@
 # README #
 
-This idea was born because of a need for a simple tool to automate execution of simple configuration teamplates on Nokia SROS based routers. Data provided on a CSV file and the configuration templates written in pure Python. Configuration scripts are the result of these templates being rendered with the CSV data.
+This idea was born because of a need for a simple tool to automate execution of simple configuration teamplates on Nokia SROS based routers. Data provided on a DATA file (CSV or Excel) and the configuration templates written in pure Python. Configuration scripts are the result of these templates being rendered with the data.
 
 ## Setup ##
 
-#### System Libraries
-These libraries have been tested under Ubuntu 20.04 and Python3.8.
+### System Libraries
+These libraries have been tested under Ubuntu 20.04 and Windows10 with Python3.8.
 
+###### Ubuntu
 ```bash
 sudo pip3 install -r requirements.txt
 ```
-
+###### Windows
 For Windows users, make sure you have Python and [PIP](https://pip.pypa.io/en/stable/installing/) installed.
+```bash
+py -m pip install -r requirements.txt
+```
 
-#### Edit `servers.yml`
+### Edit `servers.yml`
 This file has configuration parameters for the Jump Host(s). Add as many as needed. If more than one jump-host is declared, the connections will be load balanced sequentially among them.
 
 ```yml
@@ -43,32 +47,37 @@ Compiling has been tested succesfully under Ubuntu. Don't know if this is direct
 
 ## Usage ##
 
-The program needs two mandatory inputs: a) CSV file with data and b) a plugin, which is nothing but a configuration template.
+The program needs two mandatory inputs: a) DATA file and b) a plugin, which is nothing but a configuration template.
 
-#### CSV
+### DATA file
 
-The CSV file must have in its first column, the IP system of the routers to which `taskAutom` will connect to. The next columns, are the variables that will be used in the configuration template. The CSV must not include a header.
-Example: this is a CSV for two different routers, including the data to modify their interfaces.
+The DATA can be either a CSV file or an Excel file. In both cases you can define a header with column names, or not; it's optional.
+- If no header, the file must have in its first column, the IP of the routers to which `taskAutom` will connect to.
+- If using header, there must be a column named `ip` with the IP addresses of the routers to which `taskAutom` will connect to.
+
+The next columns in the DATA file, are the variables that will be used in the configuration template.
+
+**Example:** this is a CSV for two different routers, including the data to modify their interfaces. No header is being used.
 
 ```csv
 10.0.0.1,router1,1/1/1,inter1,192.168.0.1/30
 10.0.0.2,router2,1/3/5,inter7,192.168.2.1/30
 ```
 
-#### Plugin
+### Plugin
 
-The plugin is a Python code which is fed with each row of the CSV at a time, in order to render a configuration script. It consists of a function called `construir_cliLine()` which accepts three arguments: `m` which is a counter, `datos` which is a row vector, and `mop`. `m` can be used when some code needs to be ran only once; `mop` is used when the configuration script needs to be verified before running.
+The plugin is a Python code which is fed with each row of the DATA file at a time, in order to render a configuration script. It consists of a function called `construir_cliLine()` which accepts three arguments: `m` which is a counter, `datos` which is a `Pandas` series, and `mop`. `m` can be used when some code needs to be ran only once; `mop` is used when the configuration script needs to be verified before running.
 
-Example: use the previous data, to generate configuration scripts.
+**Example:** use the previous data, to generate configuration scripts. The example is assuming no header has been defined in the DATA csv file, so column id is used to identify the proper variable.
 
 ```python
 def construir_cliLine(m, datos, mop=None):
 
-	ipSystem   = datos[0]
-	router     = datos[1]
-	port       = datos[2]
-	intName    = datos[3]
-	address    = datos[4]
+	ipSystem   = datos._1
+	router     = datos._2
+	port       = datos._3
+	intName    = datos._4
+	address    = datos._5
 
 	cfg        = ""
 
@@ -83,13 +92,13 @@ def construir_cliLine(m, datos, mop=None):
 
 ###### Notes on plugin
 
-1) When writing plugins, it is recommended not to use abbreviated commands. This will potentially led to errors. For example: `/configure rout int system add 10.0.0.1/32` is discouraged. Better off use `/configure router interface system address 10.0.0.1/32`.
+1) When writing plugins, it is recommended *not* to use abbreviated commands. This will potentially led to errors. For example: `/configure rout int system add 10.0.0.1/32` is discouraged. Better off use `/configure router interface system address 10.0.0.1/32`.
 
 2) Common practice: it is better to try to accommodate plugins so that they reflect they purpose. Then use the configuration parameter `--pluginType=[show|config]` to reflect the spirit of the plugin.
 
 3) In general, use `--cmdVerify=yes`. Only disable `cmdVerify` if facing problems.
 
-#### Inventory
+### Inventory
 
 By default, `taskAutom` connects to each router that exists inside the CSV data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
@@ -100,7 +109,11 @@ ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost|
 
 If fieds in the CSV are left empty, those are replaced by default values.
 
-#### Result
+### MOP
+
+When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `Heading_2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using the prefix `Heading_3`.
+
+## Result ##
 
 If `taskAutom` is invoked with option `jobType=0`, a text file with the rendered output, will be genereated.
 
@@ -117,11 +130,7 @@ Router: router2, 10.0.0.2
 
 Otherwise, if `taskAutom` is invoked with option `jobType=2`, it will connect to each and every router, and execute the commands. User and password must be provided in this case.
 
-##### MOP
-
-When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `Heading_2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using the prefix `Heading_3`.
-
-#### Configuration Options
+## Configuration Options
 
 `taskAutom` can be configured through CLI as shown below.
 
@@ -136,10 +145,13 @@ optional arguments:
   -v, --version         Version
   -j {0,2}, --jobType {0,2}
                         Type of job
-  -csv CSVFILE, --csvFile CSVFILE
-                        CSV File with parameters
+  -d DATA, --data DATA  DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.
   -py PYFILE, --pyFile PYFILE
                         PY Template File
+  -uh {no,yes}, --useHeader {no,yes}
+                        When reading data, consider first row as header. Default=no
+  -xls XLSNAME, --xlsName XLSNAME
+                        Excel sheet name
   -u USERNAME, --username USERNAME
                         Username
   -th THREADS, --threads THREADS
@@ -176,4 +188,6 @@ optional arguments:
                         If using --strictOrder, halts if error found on execution. Default=no
   -cv {no,yes}, --cmdVerify {no,yes}
                         Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes
+  -sd {no,yes}, --sshDebug {no,yes}
+                        Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no
 ```
