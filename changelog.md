@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.11.1] - 2021-08-31
+
+- Better error detection.
+
 ## [7.11.0] - 2021-08-20
 
 - New option `sshDebug`

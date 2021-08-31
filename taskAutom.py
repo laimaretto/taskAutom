@@ -92,9 +92,9 @@ DICT_VENDOR = dict(
 		HOSTNAME_REGEX = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX     = "(\/show|show)\s.+",
 		SEND_CMD_REGEX = "#",
-		MAJOR_ERROR_LIST = [b"FAILED:",b"invalid token",b"ERROR:",b"not allowed",b"Error"],
-		MINOR_ERROR_LIST = [b"MINOR:"],
-		INFO_ERROR_LIST  = [b'INFO:'],
+		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
+		MINOR_ERROR_LIST = ["^MINOR:.+"],
+		INFO_ERROR_LIST  = ["^INFO:.+"],
 
 	),
 )
@@ -1260,7 +1260,8 @@ class myConnection(threading.Thread):
 		tStart 		 = time.time()
 		outRx  		 = ""
 		aluLogReason = ""
-		fin_script   = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
+
+		fin_script       = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
 		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
 		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
 		info_error_list  = DICT_VENDOR[connInfo['deviceType']]['INFO_ERROR_LIST']
@@ -1297,19 +1298,15 @@ class myConnection(threading.Thread):
 
 		## Analizing output only if writing to connection was successfull
 		if aluLogReason == "":
-
-			str_major_error_list = [x.decode() for x in major_error_list]
-			str_minor_error_list = [x.decode() for x in minor_error_list]
-			str_info_error_list  = [x.decode() for x in info_error_list]
 			
 			if fin_script not in outRx:
 				aluLogReason = "ReadTimeout"	
 				runStatus    = -1
-			elif any(word in outRx for word in str_major_error_list):
+			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in major_error_list]):
 				aluLogReason = "MajorFailed"
-			elif any(word in outRx for word in str_minor_error_list):
+			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in minor_error_list]):				
 				aluLogReason = "MinorFailed"
-			elif any(word in outRx for word in str_info_error_list):
+			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in info_error_list]):
 				aluLogReason = "InfoFailed"
 			else:
 				aluLogReason = "SendSuccess"
@@ -1579,7 +1576,7 @@ def fncRun(dictParam):
 
 	elif dictParam['outputJob'] == 0:
 
-		aluCliLineJob0  = ""
+		aluCliLineJob0 = ""
 
 		for i, IPconnect in enumerate(routers):
 
@@ -1599,7 +1596,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.0' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.1' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
