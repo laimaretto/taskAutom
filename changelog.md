@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.11.2] - 2021-09-02
+
+- Length of Data now as input parameter inside plugin.
+
 ## [7.11.1] - 2021-08-31
 
 - Better error detection.

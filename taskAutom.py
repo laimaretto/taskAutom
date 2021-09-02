@@ -595,6 +595,11 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 
 	if dictParam['strictOrder'] == 'no':
 
+		# Since strictOrder = no, then we pass to the module
+		# all the data, row by row, filterd by IPconnect
+		# The length of data is len(data)
+		# The row order is 'j'
+
 		if dictParam['useHeader'] == 'yes':
 			data = data[data[DATA_FILE_IP_CONNECT] == IPconnect]
 		else:
@@ -602,15 +607,21 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 
 		for j, item in enumerate(data.itertuples()):
 			try:
-				aluCliLine = aluCliLine + mod.construir_cliLine(j, item, mop)
+				aluCliLine = aluCliLine + mod.construir_cliLine(j, item, len(data), mop)
 			except Exception as e:
 				print(e)
 				print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
 				quit()
 	else:
 
+		# Since strictOrder = yes, then we pass to the module
+		# all the data, row by row, by id i, which comes from 
+		# fncRun(). 
+		# Then the length of data is 1.
+		# The row order is 0
+
 		try:
-			aluCliLine = mod.construir_cliLine(0, list(data.itertuples())[i], mop)
+			aluCliLine = mod.construir_cliLine(0, list(data.itertuples())[i], 1, mop)
 		except Exception as e:
 			print(e)
 			print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
@@ -1596,7 +1607,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.1' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.2' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')

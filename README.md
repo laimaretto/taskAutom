@@ -71,7 +71,7 @@ The plugin is a Python code which is fed with each row of the DATA file at a tim
 **Example:** use the previous data, to generate configuration scripts. The example is assuming no header has been defined in the DATA csv file, so column id is used to identify the proper variable.
 
 ```python
-def construir_cliLine(m, datos, mop=None):
+def construir_cliLine(m, datos, lenData, mop=None):
 
 	ipSystem   = datos._1
 	router     = datos._2
@@ -86,6 +86,9 @@ def construir_cliLine(m, datos, mop=None):
 
 	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
 	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
+
+    if m == lenData-1:
+        cfg = cfg + "echo end-of-plugin\n"
 
 	return cfg
 ```
