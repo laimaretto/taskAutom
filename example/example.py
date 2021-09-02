@@ -1,4 +1,4 @@
-def construir_cliLine(m, datos, mop=None):
+def construir_cliLine(m, datos, lenData, mop=None):
 
     system  = datos[0]
     rtrName = datos[1]
