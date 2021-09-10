@@ -1,5 +1,10 @@
 # Versions #
 
+## [7.11.2] - 2021-09-10
+
+- Name of `ip` column customizable on datafile.
+
+
 ## [7.11.2] - 2021-09-02
 
 - Length of Data now as input parameter inside plugin.

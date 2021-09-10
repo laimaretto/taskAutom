@@ -78,7 +78,6 @@ ALU_HOSTNAME              = [b"(A:|B:)(.+)(>|#)"]
 CH_CR					  = "\n"
 CH_COMA 				  = ","
 LOG_GLOBAL                = []
-DATA_FILE_IP_CONNECT      = "ip"
 
 # - Parameters per vendor
 DICT_VENDOR = dict(
@@ -254,11 +253,13 @@ def sort_order(data, dictParam):
 		[list]: [Ordered List]
 	"""
 
+	ipCol = dictParam['dataGroupColumn']
+
 	if dictParam['strictOrder'] == 'yes':
 
 		if dictParam['useHeader'] == 'yes':
 			try:
-				routers = list(data[DATA_FILE_IP_CONNECT])
+				routers = list(data[ipCol])
 			except Exception as e:
 				print("No column header " + str(e) + " in file " + dictParam['data'] + ". Quitting...\n")
 				quit()
@@ -269,14 +270,13 @@ def sort_order(data, dictParam):
 
 		if dictParam['useHeader'] == 'yes':
 			try:
-				routers = list(data[DATA_FILE_IP_CONNECT].unique())
-				data    = data.sort_values(by=DATA_FILE_IP_CONNECT)
+				routers = list(data[ipCol].unique())
 			except Exception as e:
 				print("No column header " + str(e) + " in file " + dictParam['data'] + ". Quitting...\n")
 				quit()				
 		else:
 			routers = list(data[0].unique())
-			data    = data.sort_values(by=0)
+			#data    = data.sort_values(by=0)
 
 	return routers, data
 
@@ -588,6 +588,8 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 
 	aluCliLine = ""
 
+	ipCol = dictParam['dataGroupColumn']
+
 	if dictParam['outputJob'] == 2:
 		mop = None
 	else:
@@ -601,7 +603,7 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 		# The row order is 'j'
 
 		if dictParam['useHeader'] == 'yes':
-			data = data[data[DATA_FILE_IP_CONNECT] == IPconnect]
+			data = data[data[ipCol] == IPconnect]
 		else:
 			data = data[data[0] == IPconnect]		
 
@@ -1607,12 +1609,13 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.2' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.3' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
 	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File')
 
+	parser1.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
 	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-xls' ,'--xlsName',      type=str, help='Excel sheet name')
 
@@ -1668,6 +1671,7 @@ if __name__ == '__main__':
 		pluginType          = args.pluginType,
 		cmdVerify           = args.cmdVerify,
 		sshDebug            = args.sshDebug,
+		dataGroupColumn     = args.dataGroupColumn,
 	)
 
 	### Rady to go ...
