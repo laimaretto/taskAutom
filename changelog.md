@@ -1,9 +1,12 @@
 # Versions #
 
-## [7.11.2] - 2021-09-10
+## [7.11.4] - 2021-09-15
+
+- If detection of `hostname` fails, append number of connection to avoid mixing logs in the same log file `not-matched_rx.txt`. 
+
+## [7.11.3] - 2021-09-10
 
 - Name of `ip` column customizable on datafile.
-
 
 ## [7.11.2] - 2021-09-02
 
