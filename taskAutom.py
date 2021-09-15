@@ -900,7 +900,7 @@ class myConnection(threading.Thread):
 				try:
 					hostname = match.groups()[1]
 				except:
-					hostname = "not-matched"
+					hostname = "host_" + str(self.num) + "_not-matched"
 
 				return hostname
 
@@ -1229,15 +1229,6 @@ class myConnection(threading.Thread):
 				aluLogged 	 = -1
 				aluPass      = "PassN/A"
 				fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-
-			# else:
-			# 	# We've tryed all the user/pass. Quitting.
-			# 	aluLogUser 	 = tempUser
-			# 	aluLogReason = "MaxLoginReached"
-			# 	aluLogged 	 = -1
-			# 	aluPass      = "PassN/A"
-			# 	fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-			# 	break
 				
 		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)
 
@@ -1609,7 +1600,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.3' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.4' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
