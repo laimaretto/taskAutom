@@ -10,7 +10,7 @@
 #
 
 import paramiko
-from paramiko import client
+#from paramiko import client
 from sshtunnel import SSHTunnelForwarder
 from netmiko import ConnectHandler
 from scp import SCPClient
@@ -20,19 +20,18 @@ import docx
 from docx.enum.style import WD_STYLE_TYPE 
 from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
-#from traitlets.traitlets import default
 
 import yaml
-import sys
+#import sys
 import telnetlib
-import ftplib
+#import ftplib
 import os
-import csv
+#import csv
 import time
 import threading
 from multiprocessing.pool import ThreadPool
-from operator import itemgetter
-from itertools import groupby
+#from operator import itemgetter
+#from itertools import groupby
 import logging
 import importlib
 import re
@@ -41,7 +40,7 @@ from getpass import getpass
 import re
 import calendar
 import random
-from socket import timeout
+#from socket import timeout
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
@@ -203,12 +202,15 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 			outTxt = outTxt + "   --> HaltOnError: " + dictParam['aluLogReason'] + ' <--\n'
 
 		if len(dfFailed) > 0:
-			outTxt = outTxt + dfFailed.to_string() + '\n'
+			outTxt = outTxt + dfFailed.to_string(max_colwidth=20) + '\n'
 
 		outTxt = outTxt + separator
+
+		df['Reason'] = df['Reason'].str.replace('(\w+:\d+|\d+.\d+.\d+.\d+:\d{1,6}|\d+.\d+.\d+.\d+)','',regex=True)
+		df['Reason'] = df.apply(lambda x: x['Reason'].replace(x['HostName'],''), axis=1)
 		dfGroup = df.groupby(['Reason']).agg({'Reason':['count'],'time':['min','max']})
 
-		outTxt = outTxt + '\n' + dfGroup.to_string() + '\n'
+		outTxt = outTxt + '\n' + dfGroup.to_string(max_colwidth=20) + '\n'
 
 		with open(DIRECTORY_LOG_INFO + '00_report.txt','w') as f:
 			f.write(outTxt)
@@ -941,37 +943,23 @@ class myConnection(threading.Thread):
 
 			if connInfo['clientType'] == 'tel':
 
-				try:
-					if connInfo['useSSHTunnel'] == 'yes':
-						connInfo['conn2rtr'] = telnetlib.Telnet(IP_LOCALHOST, connInfo['localPort'])
-					else:
-						connInfo['conn2rtr'] = telnetlib.Telnet(connInfo['systemIP'], connInfo['remotePort'])
+				a = self.routerLoginTelnet(connInfo)
 
-					connInfo['conn2rtr'].timeout = ALU_TIME_LOGIN
-					a = self.routerLoginTelnet(connInfo)
-
-					connInfo['aluLogged']    = a[0]
-					connInfo['username']     = a[1]
-					connInfo['aluLogReason'] = a[2]
-					connInfo['password']     = a[3]
-
-				except:
-
-					connInfo['conn2rtr'] = -1
+				connInfo['conn2rtr']     = a[0]
+				connInfo['aluLogged']    = a[1]
+				connInfo['username']     = a[2]
+				connInfo['aluLogReason'] = a[3]
+				connInfo['password']     = a[4]
 
 			elif connInfo['clientType'] == 'ssh':
 
-				try:
-					a = self.routerLoginSsh(connInfo)
+				a = self.routerLoginSsh(connInfo)
 
-					connInfo['conn2rtr']     = a[0]
-					connInfo['aluLogged']    = a[1]
-					connInfo['username']     = a[2]
-					connInfo['aluLogReason'] = a[3]
-					connInfo['password']     = a[4]
-
-				except:
-					connInfo['conn2rtr'] = -1
+				connInfo['conn2rtr']     = a[0]
+				connInfo['aluLogged']    = a[1]
+				connInfo['username']     = a[2]
+				connInfo['aluLogReason'] = a[3]
+				connInfo['password']     = a[4]
 
 		else:
 
@@ -1096,24 +1084,35 @@ class myConnection(threading.Thread):
 		aluPass      = "PassN/A"
 		aluLogReason = "N/A"
 		index        = 0
+		tempPass     = "N/A"
 
-		conn2rtr     = connInfo['conn2rtr']
-		clientType   = connInfo['clientType']
-		ALU_TELNET_WRITE_TIMEOUT = connInfo['telnetWriteTimeout']
-		systemIP     = connInfo['systemIP']
+		try:
 
+			if connInfo['useSSHTunnel'] == 'yes':
+				connInfo['conn2rtr'] = telnetlib.Telnet(IP_LOCALHOST, connInfo['localPort'])
+			else:
+				connInfo['conn2rtr'] = telnetlib.Telnet(connInfo['systemIP'], connInfo['remotePort'])
 
-		while aluLogged == -1:
+			connInfo['conn2rtr'].timeout = ALU_TIME_LOGIN
+			ALU_TELNET_WRITE_TIMEOUT = connInfo['telnetWriteTimeout']
+			systemIP     = connInfo['systemIP']
+
+		except Exception as e:
+
+			connInfo['conn2rtr'] = -1
+			aluLogReason = str(e)
+
+		while aluLogged == -1 and connInfo['conn2rtr'] != -1:
 
 			try:
-				i = conn2rtr.expect(ALU_PROMPT_LOGIN + ALU_PROMPT_CLOSED + ALU_PROMPT , ALU_TIME_LOGIN)
-			except:
+				i = connInfo['conn2rtr'].expect(ALU_PROMPT_LOGIN + ALU_PROMPT_CLOSED + ALU_PROMPT , ALU_TIME_LOGIN)
+			except Exception as e:
 				aluLogUser 			= "UserN/A"
-				aluLogReason 		= "TelnetError"
+				aluLogReason 		= str(e)
 				aluLogged 			= -1
 				aluPass             = "PassN/A"
 				fncPrintConsole(self.strConn + aluLogReason)
-				return (aluLogged,aluLogUser,aluLogReason,aluPass)
+				return (connInfo['conn2rtr'],aluLogged,aluLogUser,aluLogReason,aluPass)
 
 			# expected: (0, <_sre.SRE_Match object at 0x7f0887a37d98>, 'login:')
 			#fncPrintConsole("i: " + str(i))
@@ -1136,7 +1135,7 @@ class myConnection(threading.Thread):
 
 					self.fncWriteToConnection(tempUser, connInfo)
 
-					j = conn2rtr.expect(ALU_PROMPT_PASS + ALU_PROMPT_CLOSED)
+					j = connInfo['conn2rtr'].expect(ALU_PROMPT_PASS + ALU_PROMPT_CLOSED)
 					# expected: (0, <_sre.SRE_Match object at 0x7f0887a37e00>, ' Password:')
 					#fncPrintConsole("j: " + str(j))
 
@@ -1186,19 +1185,15 @@ class myConnection(threading.Thread):
 				aluLogReason 	= "LoggedOk"
 				aluLogged 		= 1
 				
-		return (aluLogged,aluLogUser,aluLogReason,tempPass)
+		return (connInfo['conn2rtr'],aluLogged,aluLogUser,aluLogReason,tempPass)
 
 	def routerLoginSsh(self, connInfo):
 
 		conn2rtr     = -1
 		aluLogged    = -1
-		aluLogUser   = "N/A"
-		aluPass      = "PassN/A"
-		aluLogReason = "N/A"
 		index        = 0
 
 		systemIP     = connInfo['systemIP']
-		delayFactor  = connInfo['delayFactor']
 		deviceType   = connInfo['deviceType']
 
 		if connInfo['useSSHTunnel'] == 'yes':
@@ -1208,9 +1203,7 @@ class myConnection(threading.Thread):
 			ip   = connInfo['systemIP']
 			port = connInfo['remotePort']
 
-		while aluLogged == -1 or index < len(self.ROUTER_USER):
-
-			#if index < len(self.ROUTER_USER):
+		while aluLogged == -1 and index < len(self.ROUTER_USER):
 
 			tempUser = self.ROUTER_USER[index][0]
 			tempPass = self.ROUTER_USER[index][1]
@@ -1223,13 +1216,13 @@ class myConnection(threading.Thread):
 				aluLogUser   = tempUser
 				aluPass      = tempPass
 			except Exception as e:
-				aluLogUser   = tempUser
-				aluLogReason = "SSHFailedConnection"
-				aluLogReason = str(e)
+				conn2rtr     = -1
 				aluLogged 	 = -1
+				aluLogReason = str(e)				
+				aluLogUser   = tempUser
 				aluPass      = "PassN/A"
 				fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-				
+
 		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)
 
 	def logFileCreation(self, hostname, DIRECTORY_LOGS, datos, strConn):
@@ -1600,7 +1593,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.4' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.5' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')

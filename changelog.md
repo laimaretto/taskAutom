@@ -1,5 +1,11 @@
 # Versions #
 
+## [7.11.5] - 2021-09-15
+
+- In the function `fncConnectToRouter()` the logins either using SSH or Telnet, have been changed to better detect login problems. This will be notified under `aluLogReason`.
+- In `fncPrintResults()`, accomodate results better when printing the table.
+- Added `openpyxl==3.0.6` and `xlrd==2.0.1` to `requirements.txt`.
+
 ## [7.11.4] - 2021-09-15
 
 - If detection of `hostname` fails, append number of connection to avoid mixing logs in the same log file `not-matched_rx.txt`. 
