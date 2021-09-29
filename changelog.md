@@ -1,5 +1,11 @@
 # Versions #
 
+## [7.11.7] - 2021-09-29
+
+- `00_log.cvs` report includes now the Timos of the device.
+- `fncWriteToConnection()` implements now a set of `try|expect` for every possible writing option and returns `runStatus,logReason,output`. This will allow for every method in the class to write appropriately and hence detect if something happened.
+- Both functions `routerRunRoutine()` and `fncAuxGetVal()` use now the new version of `fncWriteToConnection()` which detectes better connection problems when writing. This will also help in detecting nodes with connection problems and log them into `00_log.csv` 
+
 ## [7.11.5] - 2021-09-15
 
 - In the function `fncConnectToRouter()` the logins either using SSH or Telnet, have been changed to better detect login problems. This will be notified under `aluLogReason`.

@@ -10,7 +10,6 @@
 #
 
 import paramiko
-#from paramiko import client
 from sshtunnel import SSHTunnelForwarder
 from netmiko import ConnectHandler
 from scp import SCPClient
@@ -22,16 +21,11 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 import yaml
-#import sys
 import telnetlib
-#import ftplib
 import os
-#import csv
 import time
 import threading
 from multiprocessing.pool import ThreadPool
-#from operator import itemgetter
-#from itertools import groupby
 import logging
 import importlib
 import re
@@ -40,7 +34,6 @@ from getpass import getpass
 import re
 import calendar
 import random
-#from socket import timeout
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
@@ -173,7 +166,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + separator + '\n'
 
 		routers = LOG_GLOBAL
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','sshMaxLoops','servers']
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','sshMaxLoops','servers']
 		df = pd.DataFrame(routers,columns=columns)
 
 		outTxt = outTxt + "\nTiming:\n"
@@ -278,7 +271,6 @@ def sort_order(data, dictParam):
 				quit()				
 		else:
 			routers = list(data[0].unique())
-			#data    = data.sort_values(by=0)
 
 	return routers, data
 
@@ -581,12 +573,23 @@ def renderMop(aluCliLineJob0, pyFile, genMop):
 
 def renderCliLine(IPconnect, dictParam, mod, data, i):
 
-	#              0                         1      2                   3
-	# 1  10.2.102.61    CF129_LABORATORIO_SARM  1/1/1  newDescCron1236-12
-	# 3  10.2.102.61    CF129_LABORATORIO_SARM  1/1/2  newDescCron3456-12
-	# 0  10.2.21.164  CO008_TCA70_SARM_PRUEBAS  1/1/7  newDescCron1236-12
-	# 2  10.2.21.164  CO008_TCA70_SARM_PRUEBAS  1/1/F  newDescCron3456-12
-	# 4  10.2.21.164  CO008_TCA70_SARM_PRUEBAS  1/1/4  newDescCron3456-12
+	#   i             0         1        2        3                    4                 5     6  7
+	#   0   10.2.20.124    GBASUR  0.0.0.0  0.0.1.3      CF152_LPT70_SR7  TiMOS-C-16.0.R6      1  4
+	#   1     10.2.20.4  GBANORTE  0.0.0.0  0.0.1.3      CF104_MRL70_SR7  TiMOS-C-16.0.R6   9886  4
+	#   2     10.2.20.9  GBANORTE  0.0.0.0  0.0.1.3      CF103_MOR70_SR7  TiMOS-C-16.0.R6   9886  4
+	#   3     10.2.60.1  GBANORTE  0.0.1.3  0.0.1.3     C1337_VRH70_SARX   TiMOS-B-7.0.R7   9886  4
+	#   4    10.2.60.10  GBANORTE  0.0.1.3  0.0.1.3     C1569_IT570_SARX   TiMOS-B-7.0.R7   9886  4
+	#   5    10.2.60.11  GBANORTE  0.0.1.3  0.0.1.3     C3895_COM70_SARX   TiMOS-B-9.0.R3   9886  4
+	#   6    10.2.60.12  GBANORTE  0.0.1.3  0.0.1.3     C1679_SCH70_SARX   TiMOS-B-9.0.R3   9886  4
+	#   7    10.2.60.13  GBANORTE  0.0.1.3  0.0.1.3     CF614_CS270_SARX   TiMOS-B-7.0.R7   9886  4
+	#   8    10.2.60.14  GBANORTE  0.0.1.3  0.0.1.3    CF985_IG270_IXR-e  TiMOS-C-19.10.R8  9886  4
+	#   9   10.2.60.140  GBANORTE  0.0.1.3  0.0.1.3     C1272_R9J70_SARX   TiMOS-B-7.0.R7   9886  4
+	#   10   10.2.60.15  GBANORTE  0.0.1.3  0.0.1.3  CF02228_I7E70_IXR-e  TiMOS-C-19.10.R8  9886  4
+	#   11   10.2.60.16  GBANORTE  0.0.1.3  0.0.1.3     C1563_IT670_SARX   TiMOS-B-7.0.R7   9886  4
+	#   12   10.2.60.17  GBANORTE  0.0.1.3  0.0.1.3     C2376_LAN70_SARX   TiMOS-B-9.0.R3   9886  4
+	#   13   10.2.60.19  GBANORTE  0.0.1.3  0.0.1.3     CF133_LLR70_SARX   TiMOS-B-9.0.R3   9886  4
+	#   14    10.2.60.2  GBANORTE  0.0.1.3  0.0.1.3     C1568_IGC71_SARM   TiMOS-B-9.0.R3   9886  4
+
 
 	aluCliLine = ""
 
@@ -605,13 +608,13 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 		# The row order is 'j'
 
 		if dictParam['useHeader'] == 'yes':
-			data = data[data[ipCol] == IPconnect]
+			pluginData = data[data[ipCol] == IPconnect]
 		else:
-			data = data[data[0] == IPconnect]		
+			pluginData = data[data[0] == IPconnect]		
 
-		for j, item in enumerate(data.itertuples()):
+		for j, item in enumerate(pluginData.itertuples()):
 			try:
-				aluCliLine = aluCliLine + mod.construir_cliLine(j, item, len(data), mop)
+				aluCliLine = aluCliLine + mod.construir_cliLine(j, item, len(pluginData), mop)
 			except Exception as e:
 				print(e)
 				print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
@@ -625,7 +628,8 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 		# The row order is 0
 
 		try:
-			aluCliLine = mod.construir_cliLine(0, list(data.itertuples())[i], 1, mop)
+			pluginData = list(data.itertuples())[i]
+			aluCliLine = mod.construir_cliLine(0, pluginData, 1, mop)
 		except Exception as e:
 			print(e)
 			print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
@@ -739,9 +743,11 @@ class myConnection(threading.Thread):
 
 		if self.connInfo['conn2rtr'] != -1 and self.connInfo['aluLogged'] == 1:
 			
+			fncPrintConsole(self.strConn + "#### Auth ok for " + self.connInfo['systemIP'] +  " ...")
+
 			self.connInfo['timos']      = self.fncAuxGetVal(self.connInfo, 'timos')
 			self.connInfo['hostname']   = self.fncAuxGetVal(self.connInfo, 'hostname')
-			self.connInfo['timosMajor'] = int(self.connInfo['timos'].split("-")[2].split(".")[0])
+			self.connInfo['timosMajor'] = self.fncAuxGetVal(self.connInfo, 'timosMajor')
 			
 			if self.outputJob == 2:
 
@@ -834,9 +840,15 @@ class myConnection(threading.Thread):
 		if clientType == 'tel':
 
 			inText = inText + '\n'
-			output = conn2rtr.write(inText.encode())
-			time.sleep(telnetWriteTimeout)
-			cmdType = "genericTelnet"
+			try:
+				output = conn2rtr.write(inText.encode())
+				time.sleep(telnetWriteTimeout)
+				aluLogReason = ""
+				runStatus    = 1
+			except Exception as e:
+				output       = ""
+				aluLogReason = str(e)
+				runStatus    = -1
 
 		# SSH Connections
 		elif clientType == 'ssh':
@@ -844,17 +856,42 @@ class myConnection(threading.Thread):
 			if type(inText) == type([]):
 
 				if pluginType == 'config':
-					output = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+
+					try:
+						output       = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+						aluLogReason = ""
+						runStatus    = 1
+					except Exception as e:
+						output 	 	 = ''
+						aluLogReason = str(e)
+						runStatus    = -1						
+
 				elif pluginType == 'show':
+					
 					output = ''
-					for cmd in inText:
-						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
-			
+					
+					try:
+						for cmd in inText:
+							output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+						aluLogReason = ""
+						runStatus    = 1
+					except Exception as e:
+						output       = ''
+						aluLogReason = str(e)
+						runStatus    = -1
+
 			elif type(inText) == type(''):
+				
+				try:
+					output       = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+					aluLogReason = ""
+					runStatus    = 1					
+				except Exception as e:
+					output       = ''
+					aluLogReason = str(e)
+					runStatus    = -1
 
-				output = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
-
-			return output
+		return runStatus, aluLogReason, output
 
 	def fncAuxGetVal(self, connInfo, what):
 
@@ -863,27 +900,42 @@ class myConnection(threading.Thread):
 			if what == "timos":
 
 				inText = "show version\n"	
-				self.fncWriteToConnection(inText, connInfo)
-				rx     = connInfo['conn2rtr'].expect(ALU_TIMOS_LOGIN)
-				timos  = rx[1].groups()[0].decode()
+				runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
+				try:
+					rx     = connInfo['conn2rtr'].expect(ALU_TIMOS_LOGIN)
+					timos  = rx[1].groups()[0].decode()
+				except:
+					timos  = "not-matched"
 
 				return timos
 
 			elif what == "hostname":
 
 				inText = "\n"
-				self.fncWriteToConnection(inText, connInfo)
-				rx     = connInfo['conn2rtr'].expect(ALU_HOSTNAME)
-				hostname = rx[1].groups()[1].decode()
+				runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
+				try:
+					rx       = connInfo['conn2rtr'].expect(ALU_HOSTNAME)
+					hostname = rx[1].groups()[1].decode()
+				except:
+					hostname = "host_" + str(self.num) + "_not-matched"
 
-				return hostname	
+				return hostname
+
+			elif what == "timosMajor":
+
+				try:
+					timosMajor = int(self.connInfo['timos'].split("-")[2].split(".")[0])
+				except:
+					timosMajor = "not-matched"
+
+				return timosMajor					
 
 		elif connInfo['clientType'] == 'ssh':
 
 			if what == "timos":
 
 				inText  = DICT_VENDOR[connInfo['deviceType']]['VERSION']
-				rx      = self.fncWriteToConnection(inText, connInfo)
+				runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
 				inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
 				match   = re.compile(inRegex).search(rx)
 				try:
@@ -896,15 +948,24 @@ class myConnection(threading.Thread):
 			elif what == 'hostname':
 
 				inRegex  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
-				newHn    = connInfo['conn2rtr'].find_prompt()
-				match    = re.compile(inRegex).search(newHn)
 
 				try:
+					newHn    = connInfo['conn2rtr'].find_prompt()
+					match    = re.compile(inRegex).search(newHn)					
 					hostname = match.groups()[1]
 				except:
 					hostname = "host_" + str(self.num) + "_not-matched"
 
 				return hostname
+
+			elif what == "timosMajor":
+
+				try:
+					timosMajor = int(self.connInfo['timos'].split("-")[2].split(".")[0])
+				except:
+					timosMajor = "not-matched"
+
+				return timosMajor				
 
 	def fncConnectToRouter(self, connInfo):
 		"""[We update the connection info dictionary, after we've set up the connection towards the router]
@@ -1119,9 +1180,8 @@ class myConnection(threading.Thread):
 
 			if i[0] == -1:
 				# timeout
-				self.fncWriteToConnection("\003", connInfo)
+				_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
 				aluLogUser 			= "UserN/A"
-				aluLogReason 		= "TelnetTimeout"
 				aluLogged 			= -1
 				fncPrintConsole(self.strConn + aluLogReason)
 				break
@@ -1133,14 +1193,14 @@ class myConnection(threading.Thread):
 					tempUser = self.ROUTER_USER[index][0]
 					tempPass = self.ROUTER_USER[index][1]
 
-					self.fncWriteToConnection(tempUser, connInfo)
+					_, aluLogReason, _ = self.fncWriteToConnection(tempUser, connInfo)
 
 					j = connInfo['conn2rtr'].expect(ALU_PROMPT_PASS + ALU_PROMPT_CLOSED)
 					# expected: (0, <_sre.SRE_Match object at 0x7f0887a37e00>, ' Password:')
 					#fncPrintConsole("j: " + str(j))
 
 					if j[0] == 0:
-						self.fncWriteToConnection(tempPass, connInfo)
+						_, aluLogReason, _ = self.fncWriteToConnection(tempPass, connInfo)
 						#fncPrintConsole(self.strConn + "User: " + tempUser + ", Pass: " + tempPass + ", index: " + str(index))
 						aluLogUser 		= tempUser
 						aluLogged		= -1
@@ -1151,9 +1211,9 @@ class myConnection(threading.Thread):
 						# ALU_PROMPT_CLOSED
 						# Sometimes loggin into a router is not possible
 						# because many users are already logged in into it.
-						self.fncWriteToConnection("\003", connInfo)
+						_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
 						aluLogUser 			= "UserN/A"
-						aluLogReason	 	= "TelnetFailedConnection"
+						#aluLogReason	 	= "TelnetFailedConnection"
 						aluLogged 			= -1
 						aluPass             = "PassN/A"
 						fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
@@ -1161,7 +1221,7 @@ class myConnection(threading.Thread):
 
 				else:
 					# We've tryed all the user/pass. Quitting.
-					self.fncWriteToConnection("\003", connInfo)
+					_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
 					aluLogUser 			= tempUser
 					aluLogReason	 	= "MaxLoginReached"
 					aluLogged 			= -1
@@ -1173,7 +1233,7 @@ class myConnection(threading.Thread):
 				# ALU_PROMPT_CLOSED
 				# Sometimes loggin into a router is not possible
 				# because many users are already logged in into it.
-				self.fncWriteToConnection("\003", connInfo)
+				_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
 				aluLogUser 			= "UserN/A"
 				aluLogReason 		= "TelnetFailedConnection"
 				aluLogged 			= -1
@@ -1189,12 +1249,12 @@ class myConnection(threading.Thread):
 
 	def routerLoginSsh(self, connInfo):
 
-		conn2rtr     = -1
-		aluLogged    = -1
-		index        = 0
+		conn2rtr   = -1
+		aluLogged  = -1
+		index      = 0
 
-		systemIP     = connInfo['systemIP']
-		deviceType   = connInfo['deviceType']
+		systemIP   = connInfo['systemIP']
+		deviceType = connInfo['deviceType']
 
 		if connInfo['useSSHTunnel'] == 'yes':
 			ip   = IP_LOCALHOST
@@ -1253,10 +1313,7 @@ class myConnection(threading.Thread):
 	def routerRunRoutine(self, datos, connInfo):
 
 		# Sending script to ALU
-		runStatus    = 1
 		tStart 		 = time.time()
-		outRx  		 = ""
-		aluLogReason = ""
 
 		fin_script       = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
 		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
@@ -1266,29 +1323,18 @@ class myConnection(threading.Thread):
 		if connInfo['cronTime']:
 			fncPrintConsole(self.strConn + "Establishing script with CRON...", show=1)
 		else:
-			# Splitting self.datos into individual lines
 			fncPrintConsole(self.strConn + "Running script per line...", show=1)
 
-		try:
+		if connInfo['clientType'] == 'tel':
 
-			if connInfo['clientType'] == 'tel':		
-				self.fncWriteToConnection(datos, connInfo)
-				outRx = connInfo['conn2rtr'].read_until(fin_script.encode(), connInfo['telnetTimeout'])
-				outRx = outRx.decode()
-			elif connInfo['clientType'] == 'ssh':
-				datos = datos.split('\n')
-				outRx = self.fncWriteToConnection(datos, connInfo)
+			runStatus, aluLogReason, output = self.fncWriteToConnection(datos, connInfo)
+			outRx = connInfo['conn2rtr'].read_until(fin_script.encode(), connInfo['telnetTimeout'])
+			outRx = outRx.decode()
 
-		except ConnectionResetError:
-			aluLogReason = "ConnectionResetError"
-			runStatus = -1
-		except EOFError as e:
-			aluLogReason = "EOFError"
-			runStatus = -1
-		except Exception as e:
-			#aluLogReason = "ConnectionGeneralError"
-			aluLogReason = str(e)
-			runStatus = -1
+		elif connInfo['clientType'] == 'ssh':
+
+			datos = datos.split('\n')
+			runStatus, aluLogReason, outRx = self.fncWriteToConnection(datos, connInfo)
 
 		tEnd  = time.time()
 		tDiff = tEnd - tStart
@@ -1332,6 +1378,7 @@ class myConnection(threading.Thread):
 			connInfo['pluginType'],
 			connInfo['cmdVerify'],
 			connInfo['systemIP'],
+			connInfo['timos'],
 			connInfo['hostname'],
 			connInfo['username'],
 			connInfo['aluLogReason'],
@@ -1363,13 +1410,13 @@ class myConnection(threading.Thread):
 				#                 0           1            2         3
 
 				# loggin correct, proceed with logout
-				self.fncWriteToConnection(CH_CR, connInfo)
+				runStatus, aluLogReason, output = self.fncWriteToConnection(CH_CR, connInfo)
 				i = connInfo['conn2rtr'].expect(ALU_PROMPT, PROMPT_TIMEOUT)
 				#fncPrintConsole("i: " + str(i))
 
 				if i[0] in [0,1,2,3]:
 					# Logging out
-					self.fncWriteToConnection("logout", connInfo)
+					runStatus, aluLogReason, output = self.fncWriteToConnection("logout", connInfo)
 					
 					try:
 						j = connInfo['conn2rtr'].expect(ALU_PROMPT_LOGOUT, PROMPT_TIMEOUT)
@@ -1593,7 +1640,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.5' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.7' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
