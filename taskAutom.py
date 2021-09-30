@@ -638,10 +638,11 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 			quit()
 
 	try:
-		if aluCliLine[-1] == "\n":
-			aluCliLine = aluCliLine[:-1]
+		if len(aluCliLine) > 0:
+			if aluCliLine[-1] == "\n":
+				aluCliLine = aluCliLine[:-1]
 	except:
-		print("Error trying analyze the end of DATA file " + dictParam['data'] + ".\nVerify that the end of it is a data row. Quitting...\n")
+		print("Error trying analyze the DATA file " + dictParam['data'] + ".\nVerify it and make sure that the table is consistent. Quitting...\n")
 		quit()		
 
 	if dictParam['outputJob'] == 2:	
@@ -1646,7 +1647,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.8' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.9' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')

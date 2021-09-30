@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.11.9] - 2021-09-29
+
+- In function `renderCliLine()` bug corrected when `len(aluCliLine)=0`. 
+
 ## [7.11.8] - 2021-09-29
 
 - In function `renderCliLine()` better error message when the plugin cannot be rendered correctly with data.
