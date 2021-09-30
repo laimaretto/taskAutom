@@ -616,8 +616,9 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 			try:
 				aluCliLine = aluCliLine + mod.construir_cliLine(j, item, len(pluginData), mop)
 			except Exception as e:
-				print(e)
-				print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
+				print('\nError: ' + str(e))
+				print('Row: ' + str(item))
+				print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it, or the data file " + dictParam['data']+ ". Quitting...\n")
 				quit()
 	else:
 
@@ -631,12 +632,17 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 			pluginData = list(data.itertuples())[i]
 			aluCliLine = mod.construir_cliLine(0, pluginData, 1, mop)
 		except Exception as e:
-			print(e)
-			print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it. Quitting...\n")
+			print('\nError: ' + str(e))
+			print('Row: ' + str(pluginData))
+			print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it, or the data file " + dictParam['data']+ ". Quitting...\n")
 			quit()
 
-	if aluCliLine[-1] == "\n":
-		aluCliLine = aluCliLine[:-1]
+	try:
+		if aluCliLine[-1] == "\n":
+			aluCliLine = aluCliLine[:-1]
+	except:
+		print("Error trying analyze the end of DATA file " + dictParam['data'] + ".\nVerify that the end of it is a data row. Quitting...\n")
+		quit()		
 
 	if dictParam['outputJob'] == 2:	
 
@@ -1640,7 +1646,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.7' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.8' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
