@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.11.8] - 2021-09-29
+
+- In function `renderCliLine()` better error message when the plugin cannot be rendered correctly with data.
+
 ## [7.11.7] - 2021-09-29
 
 - `00_log.cvs` report includes now the Timos of the device.
