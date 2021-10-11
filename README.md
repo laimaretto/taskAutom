@@ -53,9 +53,13 @@ The program needs two mandatory inputs: a) DATA file and b) a plugin, which is n
 ### DATA file
 
 The DATA can be either a CSV file or an Excel file. In both cases you can define a header with column names, or not; it's optional.
-- If no header, the file must have in its first column, the IP of the routers to which `taskAutom` will connect to.
+- If no header, the file must have in its first column (`_1`), the IP of the routers to which `taskAutom` will connect to.
 - If using header, there must be a column named `ip` with the IP addresses of the routers to which `taskAutom` will connect to.
-    - You can chose a differnt column name by using the configuration option `-cg myColName`.
+    - You can chose a differnt column name by using the configuration option `-gc/--dataGroupColumn myColName`.
+
+The first column `_1` or the `ip` column (or eventually changed by `-gc`) allows `taskAutom` to group routers by that column when processing data. This is particularly useful if you have the same router along several rows in the DATA file.
+
+If you want `taskAutom` not to group routers by the `[ip|_1]` column, you should use the `-so/--strictOrder yes` CLI parameter: this will process the routers' data in the order that it is inside the DATA file.
 
 The next columns in the DATA file, are the variables that will be used in the configuration template.
 
@@ -68,9 +72,15 @@ The next columns in the DATA file, are the variables that will be used in the co
 
 ### Plugin
 
-The plugin is a Python code which is fed with each row of the DATA file at a time, in order to render a configuration script. It consists of a function called `construir_cliLine()` which accepts four arguments: `m` which is a counter, `datos` which is a `Pandas` series, `lenData` which is the length of the Pandas dataFrame ,and `mop`. `m` and `lenData` can be used to decide when some part of the code must be ran; `mop` is used when the configuration script needs to be verified before running.
+The plugin is a Python code which is fed with each row of the DATA file at a time, in order to render a configuration script. It consists of a function called `construir_cliLine()` which accepts four arguments:
+- `m` which is a counter, representing the `row_id` of the data.
+- `datos` which is a `Pandas` series; the data itself.
+- `lenData` which is the length of the Pandas dataFrame; i.e.: the amount of rows inside the grouped data.
+- `mop`, a boolean.
 
-**Example:** use the previous data, to generate configuration scripts. The example is assuming no header has been defined in the DATA csv file, so column id is used to identify the proper variable.
+`m` and `lenData` can be used to decide when some part of the code must be ran. `mop` is used when the configuration script needs to be verified before running; `mop=True` when the CLI parameter `-j/--jobType` is `0`.
+
+**Example:** use the previous data, to generate configuration scripts. The example is assuming no header has been defined in the DATA file, so column id is used to identify the proper variable.
 
 ```python
 def construir_cliLine(m, datos, lenData, mop=None):
@@ -105,7 +115,7 @@ def construir_cliLine(m, datos, lenData, mop=None):
 
 ### Inventory
 
-By default, `taskAutom` connects to each router that exists inside the CSV data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
+By default, `taskAutom` connects to each and every router that exists inside the DATA data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
 ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost|max_loops
 --|--------|--------|------------|-------------|-----------|----------|--------|---------
@@ -122,10 +132,11 @@ When writing a plugin, is important to help `taskAutom` understand which string 
 
 ## Result ##
 
-If `taskAutom` is invoked with option `jobType=0`, a text file with the rendered output, will be genereated.
+If `taskAutom` is invoked with option `-j/--jobType 0`, a text file with the rendered output, will be genereated.
 
 ```bash
-$ taskAutom -csv listExample.csv -py confExample.py -j 0
+$ taskAutom -d listExample.csv -py confExample.py -j 0
+
 Router: router1, 10.0.0.1
 /configure router interface inter1 port 1/1/1
 /configure router interface inter1 address 192.168.0.1
@@ -135,7 +146,7 @@ Router: router2, 10.0.0.2
 /configure router interface inter7 address 192.168.2.1
 ```
 
-Otherwise, if `taskAutom` is invoked with option `jobType=2`, it will connect to each and every router, and execute the commands. User and password must be provided in this case.
+Otherwise, if `taskAutom` is invoked with option `-j/--jobType 2`, it will connect to each and every router, and execute the commands. User and password must be provided in this case.
 
 ---
 
