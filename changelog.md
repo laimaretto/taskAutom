@@ -1,5 +1,22 @@
 # Versions #
 
+
+## [7.12.1] - 2021-10-11
+
+- Remove parameter `clientType` in favor of `deviceType`.
+    - Using Netmiko's `nokia_sros_telnet` as device type when a Telnet Connection is needed. If ssh, use `nokia_sros`.
+- Rename parameter `sshMaxLoops` in favor of `maxLoops`.
+- Remove paramter `telnetTimeout`.
+    - all timinig is now controlled by `delayFactor` and/or `maxLoops`.
+- Function `connectToRouter()` is simpler now:
+    - New function `routerLogin()` which direclty calls `ConnectHandler()` with the appropiate `deviceType`.
+    - Functions `routerLoginSSH()` and `routerLoginTelnet()` no longer needed.
+- Function `fncWriteToConnection()` is simpler now as the connection handler is always Netmiko's `ConnectHandler()`.
+- Function `fncAuxGetVal()` is simpler now.
+- Function `routerLogout()` no longer needed.
+- PluginType is now a mandatory parameter and no longer optional.
+
+
 ## [7.11.9] - 2021-09-29
 
 - In function `renderCliLine()` bug corrected when `len(aluCliLine)=0`. 

@@ -86,7 +86,22 @@ DICT_VENDOR = dict(
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
-
+		REMOTE_PORT      = 22,
+	),
+	nokia_sros_telnet=dict(
+		START_SCRIPT   = "# SCRIPT_NONO_START", # no \n in the end
+		FIRST_LINE     = "\n/environment no more\n",
+		LAST_LINE      = "\nexit all\n",
+		FIN_SCRIPT     = "# SCRIPT_NONO_FIN", # no \n in the end
+		VERSION 	   = "show version", # no \n in the end
+		VERSION_REGEX  = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
+		HOSTNAME_REGEX = "(A:|B:)(.+)(>|#)",
+		SHOW_REGEX     = "(\/show|show)\s.+",
+		SEND_CMD_REGEX = "#",
+		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
+		MINOR_ERROR_LIST = ["^MINOR:.+"],
+		INFO_ERROR_LIST  = ["^INFO:.+"],
+		REMOTE_PORT      = 23,
 	),
 )
 
@@ -151,10 +166,8 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	else:
 		outTxt = outTxt + "  Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) + '\n'
 	
-	outTxt = outTxt + "  Client Type:                " + str(dictParam['clientType']) + '\n'
-	outTxt = outTxt + "  Telnet Timeout:             " + str(dictParam['telnetTimeout']) + "s" + '\n'
-	outTxt = outTxt + "  SSH Delay Factor:           " + str(dictParam['delayFactor']) + '\n'
-	outTxt = outTxt + "  SSH MaxLoops:               " + str(dictParam['sshMaxLoops']) + '\n'
+	outTxt = outTxt + "  Delay Factor:               " + str(dictParam['delayFactor']) + '\n'
+	outTxt = outTxt + "  MaxLoops:                   " + str(dictParam['maxLoops']) + '\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
 	outTxt = outTxt + "  Device Type:                " + str(dictParam['deviceType']) + '\n'
 
@@ -166,7 +179,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + separator + '\n'
 
 		routers = LOG_GLOBAL
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','clientType','txLines','rxLines','time','telnetTimeout','delayFactor','sshMaxLoops','servers']
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','delayFactor','maxLoops','servers']
 		df = pd.DataFrame(routers,columns=columns)
 
 		outTxt = outTxt + "\nTiming:\n"
@@ -436,7 +449,7 @@ def verifyConfigFile(config_file):
 
 def verifyInventory(inventoryFile, jumpHostsFile):
 
-	columns = ['ip','username','password','clientType','useSSHTunnel','telnetTimeout','delayFactor','sshMaxLoops','jumpHost']
+	columns = ['ip','username','password','deviceType','useSSHTunnel','delayFactor','maxLoops','jumpHost']
 
 	try:
 		df = pd.read_csv(inventoryFile)
@@ -461,11 +474,10 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 
 		ip   = row.ip
 		jh   = row.jumpHost
-		ct   = row.clientType
+		dt   = row.deviceType
 		tun  = row.useSSHTunnel
-		to   = row.telnetTimeout
 		dfac = row.delayFactor
-		sml  = row.sshMaxLoops
+		sml  = row.maxLoops
 
 		if tun not in ['yes','no','']:
 			print("Inventory: The router " + ip + " is not using a valid sshTunnel option. For default, leave empty. Quitting...")
@@ -479,16 +491,9 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 				print("Inventory: The router " + ip + " is using sshtunnel and has not a valid jumpHost. If empty, using default. Available: " + str(serversList) + ". Quitting...")
 				quit()
 
-		if ct not in ['ssh','tel','']:
-			print("Inventory: The router " + ip + " is not using a valid clientType. For default, leave empty. Quitting...")
+		if dt not in list(DICT_VENDOR.keys()) + ['']:
+			print("Inventory: The router " + ip + " is not using a valid deviceType. For default, leave empty. Quitting...")
 			quit()
-
-		if to != '':
-			try:
-				float(to)
-			except:
-				print("Inventory: The router " + ip + " has not a valid telnetTimeout. For default, leave empty. Quitting...")
-				quit()
 
 		if dfac != '':
 			try:
@@ -501,7 +506,7 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 			try:
 				float(sml)
 			except:
-				print("Inventory: The router " + ip + " has not a valid sshMaxLoops. For default, leave empty. Quitting...")
+				print("Inventory: The router " + ip + " has not a valid maxLoops. For default, leave empty. Quitting...")
 				quit()				
 
 
@@ -670,7 +675,6 @@ class myConnection(threading.Thread):
 		self.datos 			  = DICT_VENDOR[dictParam['deviceType']]['START_SCRIPT'] + DICT_VENDOR[dictParam['deviceType']]['FIRST_LINE'] + config_line + DICT_VENDOR[dictParam['deviceType']]['LAST_LINE'] + DICT_VENDOR[dictParam['deviceType']]['FIN_SCRIPT']
 		self.outputJob 	      = dictParam['outputJob']
 		self.DIRECTORY_LOGS   = dictParam['DIRECTORY_LOGS']
-		self.telnetTimeout    = dictParam['telnetTimeout']
 		self.ALU_FILE_OUT_CSV = dictParam['ALU_FILE_OUT_CSV']
 		self.delayFactor      = dictParam['delayFactor']
 		self.logInfo          = dictParam['logInfo']
@@ -681,7 +685,6 @@ class myConnection(threading.Thread):
 		self.connInfo = {
 			'systemIP':systemIP,
 			'useSSHTunnel':dictParam['useSSHTunnel'],
-			'clientType':dictParam['clientType'],
 			'localPort':-1,
 			'remotePort':-1,
 			'controlPlaneAccess':-1,
@@ -695,9 +698,7 @@ class myConnection(threading.Thread):
 			'sshServer':-1,
 			'conn2rtr':-1,
 			'delayFactor':dictParam['delayFactor'],
-			'telnetTimeout':dictParam['telnetTimeout'],
-			'telnetWriteTimeout':dictParam['telnetWriteTimeout'],
-			'sshMaxLoops':dictParam['sshMaxLoops'],
+			'maxLoops':dictParam['maxLoops'],
 			'jumpHosts':dictParam['jumpHosts'],
 			'inventory':dictParam['inventory'],
 			'strictOrder':dictParam['strictOrder'],
@@ -712,7 +713,7 @@ class myConnection(threading.Thread):
 		else:
 			self.connInfo['jumpHost'] = -1
 
-		# ### Update per router data with informatino from inventory
+		# ### Update per router data with information from inventory
 		if dictParam['inventoryFile'] != None and self.connInfo['systemIP'] in self.connInfo['inventory'].keys():
 			self.tempDict = self.connInfo['inventory'][systemIP]
 			for key in self.tempDict.keys():
@@ -724,11 +725,7 @@ class myConnection(threading.Thread):
 			self.connInfo['remotePort'] = int( self.connInfo['systemIP'].split(":")[1] )			
 			self.connInfo['systemIP']   = self.connInfo['systemIP'].split(":")[0]
 		else:
-			if self.connInfo['clientType'] == 'tel':
-				self.connInfo['remotePort'] = ROUTER_TELNET_PORT
-
-			elif self.connInfo['clientType'] == 'ssh':
-				self.connInfo['remotePort'] = ROUTER_SSH_PORT
+			self.connInfo['remotePort'] = DICT_VENDOR[self.connInfo['deviceType']]['REMOTE_PORT']
 
 		# --- Users
 		self.ROUTER_USER1    = [self.connInfo['username'],self.connInfo['password']]
@@ -796,7 +793,6 @@ class myConnection(threading.Thread):
 
 				if self.runStatus == 1:
 
-					self.connInfo.update(self.routerLogout(self.connInfo))
 					fncPrintConsole(self.strConn + "Logout: " + str(self.connInfo['aluLogReason']))
 
 				else:
@@ -810,12 +806,7 @@ class myConnection(threading.Thread):
 
 		#print(self.connInfo['conn2rtr'], self.connInfo['aluLogged'], self.connInfo['useSSHTunnel'], self.connInfo['sshServer'].tunnel_is_up, self.connInfo['clientType'])
 		if self.connInfo['conn2rtr'] != -1 or self.connInfo['aluLogged'] == 1:
-
-			if self.connInfo['clientType'] == 'tel':
-				self.connInfo['conn2rtr'].close()
-
-			elif self.connInfo['clientType'] == 'ssh':
-				self.connInfo['conn2rtr'].disconnect()
+			self.connInfo['conn2rtr'].disconnect()
 
 		if self.connInfo['useSSHTunnel'] == 'yes' and self.connInfo['sshServer']:
 			self.connInfo['sshServer'].stop()
@@ -827,12 +818,9 @@ class myConnection(threading.Thread):
 
 	def fncWriteToConnection(self, inText, connInfo):
 
-		clientType         = connInfo['clientType']
 		conn2rtr           = connInfo['conn2rtr']
-		telnetWriteTimeout = connInfo['telnetWriteTimeout']
 		pluginType         = connInfo['pluginType']
-
-		maxLoops           = connInfo['sshMaxLoops']
+		maxLoops           = connInfo['maxLoops']
 		delayFactor        = connInfo['delayFactor']
 
 		expectString       = DICT_VENDOR[connInfo['deviceType']]['SEND_CMD_REGEX']
@@ -842,137 +830,84 @@ class myConnection(threading.Thread):
 		else:
 			cmdVerify = False
 
-		### Writes to a connection. 
-		# For telnet connections, stream needs to be encoded before doing it...
-		if clientType == 'tel':
+		# ### Writes to a connection. 
 
-			inText = inText + '\n'
-			try:
-				output = conn2rtr.write(inText.encode())
-				time.sleep(telnetWriteTimeout)
-				aluLogReason = ""
-				runStatus    = 1
-			except Exception as e:
-				output       = ""
-				aluLogReason = str(e)
-				runStatus    = -1
+		if type(inText) == type([]):
 
-		# SSH Connections
-		elif clientType == 'ssh':
+			if pluginType == 'config':
 
-			if type(inText) == type([]):
+				try:
+					output       = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+					aluLogReason = ""
+					runStatus    = 1
+				except Exception as e:
+					output 	 	 = ''
+					aluLogReason = str(e)
+					runStatus    = -1						
 
-				if pluginType == 'config':
-
-					try:
-						output       = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
-						aluLogReason = ""
-						runStatus    = 1
-					except Exception as e:
-						output 	 	 = ''
-						aluLogReason = str(e)
-						runStatus    = -1						
-
-				elif pluginType == 'show':
-					
-					output = ''
-					
-					try:
-						for cmd in inText:
-							output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
-						aluLogReason = ""
-						runStatus    = 1
-					except Exception as e:
-						output       = ''
-						aluLogReason = str(e)
-						runStatus    = -1
-
-			elif type(inText) == type(''):
+			elif pluginType == 'show':
+				
+				output = ''
 				
 				try:
-					output       = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+					for cmd in inText:
+						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
 					aluLogReason = ""
-					runStatus    = 1					
+					runStatus    = 1
 				except Exception as e:
 					output       = ''
 					aluLogReason = str(e)
 					runStatus    = -1
 
+		elif type(inText) == type(''):
+			
+			try:
+				output       = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+				aluLogReason = ""
+				runStatus    = 1					
+			except Exception as e:
+				output       = ''
+				aluLogReason = str(e)
+				runStatus    = -1
+
 		return runStatus, aluLogReason, output
 
 	def fncAuxGetVal(self, connInfo, what):
 
-		if connInfo['clientType'] == 'tel':
+		if what == "timos":
 
-			if what == "timos":
+			inText  = DICT_VENDOR[connInfo['deviceType']]['VERSION']
+			runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
+			inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
+			match   = re.compile(inRegex).search(rx)
+			try:
+				timos   = match.groups()[0]
+			except:
+				timos   = "not-matched"
 
-				inText = "show version\n"	
-				runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
-				try:
-					rx     = connInfo['conn2rtr'].expect(ALU_TIMOS_LOGIN)
-					timos  = rx[1].groups()[0].decode()
-				except:
-					timos  = "not-matched"
+			return timos
 
-				return timos
+		elif what == 'hostname':
 
-			elif what == "hostname":
+			inRegex  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
 
-				inText = "\n"
-				runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
-				try:
-					rx       = connInfo['conn2rtr'].expect(ALU_HOSTNAME)
-					hostname = rx[1].groups()[1].decode()
-				except:
-					hostname = "host_" + str(self.num) + "_not-matched"
+			try:
+				newHn    = connInfo['conn2rtr'].find_prompt()
+				match    = re.compile(inRegex).search(newHn)					
+				hostname = match.groups()[1]
+			except:
+				hostname = "host_" + str(self.num) + "_not-matched"
 
-				return hostname
+			return hostname
 
-			elif what == "timosMajor":
+		elif what == "timosMajor":
 
-				try:
-					timosMajor = int(self.connInfo['timos'].split("-")[2].split(".")[0])
-				except:
-					timosMajor = "not-matched"
+			try:
+				timosMajor = int(self.connInfo['timos'].split("-")[2].split(".")[0])
+			except:
+				timosMajor = "not-matched"
 
-				return timosMajor					
-
-		elif connInfo['clientType'] == 'ssh':
-
-			if what == "timos":
-
-				inText  = DICT_VENDOR[connInfo['deviceType']]['VERSION']
-				runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
-				inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
-				match   = re.compile(inRegex).search(rx)
-				try:
-					timos   = match.groups()[0]
-				except:
-					timos   = "not-matched"
-
-				return timos
-
-			elif what == 'hostname':
-
-				inRegex  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
-
-				try:
-					newHn    = connInfo['conn2rtr'].find_prompt()
-					match    = re.compile(inRegex).search(newHn)					
-					hostname = match.groups()[1]
-				except:
-					hostname = "host_" + str(self.num) + "_not-matched"
-
-				return hostname
-
-			elif what == "timosMajor":
-
-				try:
-					timosMajor = int(self.connInfo['timos'].split("-")[2].split(".")[0])
-				except:
-					timosMajor = "not-matched"
-
-				return timosMajor				
+			return timosMajor	
 
 	def fncConnectToRouter(self, connInfo):
 		"""[We update the connection info dictionary, after we've set up the connection towards the router]
@@ -998,7 +933,7 @@ class myConnection(threading.Thread):
 
 		else:
 
-			fncPrintConsole(self.strConn + "Using direct " + connInfo['clientType'] + " access: ")
+			fncPrintConsole(self.strConn + "Using direct " + connInfo['deviceType'] + " access: ")
 			fncPrintConsole(self.strConn + "Trying router " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']) )
 
 			connInfo['controlPlaneAccess'] 	= 1	
@@ -1009,25 +944,13 @@ class myConnection(threading.Thread):
 
 		if connInfo['controlPlaneAccess'] == 1:
 
-			if connInfo['clientType'] == 'tel':
+			a = self.routerLogin(connInfo)
 
-				a = self.routerLoginTelnet(connInfo)
-
-				connInfo['conn2rtr']     = a[0]
-				connInfo['aluLogged']    = a[1]
-				connInfo['username']     = a[2]
-				connInfo['aluLogReason'] = a[3]
-				connInfo['password']     = a[4]
-
-			elif connInfo['clientType'] == 'ssh':
-
-				a = self.routerLoginSsh(connInfo)
-
-				connInfo['conn2rtr']     = a[0]
-				connInfo['aluLogged']    = a[1]
-				connInfo['username']     = a[2]
-				connInfo['aluLogReason'] = a[3]
-				connInfo['password']     = a[4]
+			connInfo['conn2rtr']     = a[0]
+			connInfo['aluLogged']    = a[1]
+			connInfo['username']     = a[2]
+			connInfo['aluLogReason'] = a[3]
+			connInfo['password']     = a[4]
 
 		else:
 
@@ -1292,6 +1215,44 @@ class myConnection(threading.Thread):
 
 		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)
 
+	def routerLogin(self, connInfo):
+
+		conn2rtr   = -1
+		aluLogged  = -1
+		index      = 0
+
+		systemIP   = connInfo['systemIP']
+		deviceType = connInfo['deviceType']
+
+		if connInfo['useSSHTunnel'] == 'yes':
+			ip   = IP_LOCALHOST
+			port = connInfo['localPort']
+		else:
+			ip   = connInfo['systemIP']
+			port = connInfo['remotePort']
+
+		while aluLogged == -1 and index < len(self.ROUTER_USER):
+
+			tempUser = self.ROUTER_USER[index][0]
+			tempPass = self.ROUTER_USER[index][1]
+			index 	 = index + 1
+
+			try:
+				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli = False)
+				aluLogged    = 1
+				aluLogReason = "LoggedOk"
+				aluLogUser   = tempUser
+				aluPass      = tempPass
+			except Exception as e:
+				conn2rtr     = -1
+				aluLogged 	 = -1
+				aluLogReason = str(e)				
+				aluLogUser   = tempUser
+				aluPass      = "PassN/A"
+				fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
+
+		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)		
+
 	def logFileCreation(self, hostname, DIRECTORY_LOGS, datos, strConn):
 
 		fncPrintConsole(strConn + "Creating files locally for " + hostname + "...")
@@ -1332,16 +1293,8 @@ class myConnection(threading.Thread):
 		else:
 			fncPrintConsole(self.strConn + "Running script per line...", show=1)
 
-		if connInfo['clientType'] == 'tel':
-
-			runStatus, aluLogReason, output = self.fncWriteToConnection(datos, connInfo)
-			outRx = connInfo['conn2rtr'].read_until(fin_script.encode(), connInfo['telnetTimeout'])
-			outRx = outRx.decode()
-
-		elif connInfo['clientType'] == 'ssh':
-
-			datos = datos.split('\n')
-			runStatus, aluLogReason, outRx = self.fncWriteToConnection(datos, connInfo)
+		datos = datos.split('\n')
+		runStatus, aluLogReason, outRx = self.fncWriteToConnection(datos, connInfo)
 
 		tEnd  = time.time()
 		tDiff = tEnd - tStart
@@ -1392,13 +1345,12 @@ class myConnection(threading.Thread):
 			str(connId),
 			str(connInfo['localPort']),
 			serverName,
-			connInfo['clientType'],
+			connInfo['deviceType'],
 			str(len(datos.split('\n'))),
 			str(len(outRx.split('\n'))),
 			float(fncFormatTime(tDiff)),
-			str(connInfo['telnetTimeout']),
 			str(connInfo['delayFactor']),
-			str(connInfo['sshMaxLoops']),
+			str(connInfo['maxLoops']),
 			str(lenServers),
 			]
 
@@ -1437,7 +1389,7 @@ class myConnection(threading.Thread):
 						#connInfo['aluLogged'] = -1
 						fncPrintConsole(self.strConn + "Something happended. Not properly logged out from " + connInfo['systemIP'])
 
-			elif connInfo['clientType'] == 'ssh':
+			elif connInfo['deviceType'] in DICT_VENDOR.keys():
 
 				pass
 
@@ -1647,32 +1599,29 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.11.9' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.12.1' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
 	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File')
 
 	parser1.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
-	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
 	parser1.add_argument('-xls' ,'--xlsName',      type=str, help='Excel sheet name')
 
-	parser1.add_argument('-u'  ,'--username',      type=str, help='Username', )
+	parser1.add_argument('-u'  ,'--username',      type=str, help='Username to connect to router.', )
 	parser1.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
 	parser1.add_argument('-log','--logInfo' ,      type=str, help='Description for log folder', )
 
 	parser1.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
 	parser1.add_argument('-inv','--inventoryFile', type=str, help='inventory.csv file with per router connection parameters. Default=None', default=None)
-	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin. Default=config', default='config', choices=['show','config'])
+	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin.', choices=['show','config'])
 	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])	
 	parser1.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
-	parser1.add_argument('-to' ,'--telnetTimeout', type=int, help='Telnet read Timeout [sec]. Default=90', default=90,)
-	parser1.add_argument('-tw' ,'--telnetWriteTimeout', type=int, help='Telnet write Timeout [sec]. DO NOT MODIFY. Default=0', default=0,)
 	parser1.add_argument('-df' ,'--delayFactor',   type=float, help='SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1', default=1,)
-	parser1.add_argument('-sml' ,'--sshMaxLoops',    type=float, help='SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000', default=5000)
+	parser1.add_argument('-sml' ,'--maxLoops',    type=float, help='SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000', default=5000)
 	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
-	parser1.add_argument('-ct', '--clientType',    type=str, help='Connection type. Default=ssh', default='ssh', choices=['tel','ssh'])
-	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros'])
+	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
 	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-hoe','--haltOnError',   type=str, help='If using --strictOrder, halts if error found on execution. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-cv', '--cmdVerify',     type=str, help='Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
@@ -1684,7 +1633,6 @@ if __name__ == '__main__':
 
 	dictParam = dict(
 		outputJob 			= args.jobType,
-		#csvFile 			= args.csvFile,
 		data                = args.data,
 		xlsName             = args.xlsName,
 		useHeader           = args.useHeader,
@@ -1694,12 +1642,9 @@ if __name__ == '__main__':
 		progNumThreads		= args.threads,
 		logInfo 			= args.logInfo,
 		useSSHTunnel 		= args.sshTunnel,
-		telnetTimeout 		= args.telnetTimeout,
-		telnetWriteTimeout  = args.telnetWriteTimeout,
 		cronTime            = args.cronTime,
-		clientType          = args.clientType,
 		delayFactor         = args.delayFactor,
-		sshMaxLoops         = args.sshMaxLoops,
+		maxLoops            = args.maxLoops,
 		jumpHostsFile       = args.jumpHostsFile,
 		genMop              = args.genMop,
 		strictOrder         = args.strictOrder,
@@ -1721,10 +1666,8 @@ if __name__ == '__main__':
 	elif (	
 		dictParam['outputJob'] == 2 and 
 		dictParam['username'] and 
-		dictParam['progNumThreads'] and 
 		dictParam['logInfo'] and 
-		dictParam['useSSHTunnel'] in ['no','yes'] and 
-		dictParam['telnetTimeout']
+		dictParam['pluginType']
 		):
 
 		print("\n#######################################")
@@ -1736,4 +1679,4 @@ if __name__ == '__main__':
 
 	else:
 
-		print("Not enough paramteres.\nRun: python script_x_y.py -h for help.\nQuitting...")
+		print("Not enough paramteres.\nAt least define --username, --logInfo and --pluginType.\nRun: python taskAutom.py -h for help.\nQuitting...")
