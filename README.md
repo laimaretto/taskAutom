@@ -117,10 +117,10 @@ def construir_cliLine(m, datos, lenData, mop=None):
 
 By default, `taskAutom` connects to each and every router that exists inside the DATA data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
-ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|clientType|jumpHost|max_loops
+ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|deviceType|jumpHost|maxLoops
 --|--------|--------|------------|-------------|-----------|----------|--------|---------
-10.0.0.1|user1|pass1|yes||0.5|ssh|server1|1000
-10.0.0.2|user2|pass2|no|90||tel|
+10.0.0.1|user1|pass1|yes||0.5|nokia_sros|server1|1000
+10.0.0.2|user2|pass2|no|90||nokia_sros_telnet|
 
 If fieds in the CSV are left empty, those are replaced by default values.
 
@@ -171,11 +171,11 @@ optional arguments:
   -gc DATAGROUPCOLUMN, --dataGroupColumn DATAGROUPCOLUMN
                         Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip
   -uh {no,yes}, --useHeader {no,yes}
-                        When reading data, consider first row as header. Default=no
+                        When reading data, consider first row as header. Default=yes
   -xls XLSNAME, --xlsName XLSNAME
                         Excel sheet name
   -u USERNAME, --username USERNAME
-                        Username
+                        Username to connect to router.
   -th THREADS, --threads THREADS
                         Number of threads. Default=1
   -log LOGINFO, --logInfo LOGINFO
@@ -185,24 +185,18 @@ optional arguments:
   -inv INVENTORYFILE, --inventoryFile INVENTORYFILE
                         inventory.csv file with per router connection parameters. Default=None
   -pt {show,config}, --pluginType {show,config}
-                        Type of plugin. Default=config
+                        Type of plugin.
   -gm {no,yes}, --genMop {no,yes}
                         Generate MOP. Default=no
   -crt CRONTIME [CRONTIME ...], --cronTime CRONTIME [CRONTIME ...]
                         Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).
-  -to TELNETTIMEOUT, --telnetTimeout TELNETTIMEOUT
-                        Telnet read Timeout [sec]. Default=90
-  -tw TELNETWRITETIMEOUT, --telnetWriteTimeout TELNETWRITETIMEOUT
-                        Telnet write Timeout [sec]. DO NOT MODIFY. Default=0
   -df DELAYFACTOR, --delayFactor DELAYFACTOR
                         SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1
-  -sml SSHMAXLOOPS, --sshMaxLoops SSHMAXLOOPS
+  -sml MAXLOOPS, --maxLoops MAXLOOPS
                         SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000
   -tun {no,yes}, --sshTunnel {no,yes}
                         Use SSH Tunnel to routers. Default=yes
-  -ct {tel,ssh}, --clientType {tel,ssh}
-                        Connection type. Default=ssh
-  -dt {nokia_sros}, --deviceType {nokia_sros}
+  -dt {nokia_sros,nokia_sros_telnet}, --deviceType {nokia_sros,nokia_sros_telnet}
                         Device Type. Default=nokia_sros
   -so {no,yes}, --strictOrder {no,yes}
                         Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no
@@ -212,5 +206,4 @@ optional arguments:
                         Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes
   -sd {no,yes}, --sshDebug {no,yes}
                         Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no
-
 ```
