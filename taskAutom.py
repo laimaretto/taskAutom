@@ -9,6 +9,7 @@
 # but WITHOUT ANY WARRANTY of any kind whatsoever.
 #
 
+from tkinter.tix import FileSelectBox
 import paramiko
 from sshtunnel import SSHTunnelForwarder
 from netmiko import ConnectHandler
@@ -762,22 +763,17 @@ class myConnection(threading.Thread):
 
 				fncPrintConsole(self.strConn + "#### Running routine for " + self.connInfo['systemIP'] +  " ...")
 
-				self.f = self.logFileCreation(self.connInfo['hostname'], self.DIRECTORY_LOGS, self.datos, self.strConn)
-
-				self.fRx		 = self.f[0]
-				self.fullPathCmd = self.f[1]
-				self.fCmd        = self.f[2]
-
 				if self.useCron > 0:
 
-					self.s = self.fncUploadFile(self.strConn, self.fullPathCmd, self.fCmd, self.connInfo)
+					self.s = self.fncUploadFile(self.strConn, self.datos, self.connInfo)
 
-					self.sftpStatus   = self.s[0]
-					self.aluLogReason = self.s[1]
+					self.sftpStatus               = self.s[0]
+					self.connInfo['aluLogReason'] = self.s[1]
+					self.scriptName               = self.s[2]
 
 					if self.sftpStatus == 1:
 
-						self.datos = self.runCron(self.fCmd, self.connInfo)
+						self.datos = self.runCron(self.scriptName, self.connInfo)
 						self.b     = self.routerRunRoutine(self.datos, self.connInfo)
 
 						#fncPrintConsole(self.strConn + "Run: " + str(self.b[0]))
@@ -804,7 +800,7 @@ class myConnection(threading.Thread):
 
 					fncPrintConsole(self.strConn + str(self.connInfo['aluLogReason']))
 
-		self.logData(self.connInfo, self.num, self.tDiff, self.outRx, self.fRx, self.strConn, self.datos, self.logInfo, self.LOG_TIME, self.plugin)
+		self.logData(self.connInfo, self.num, self.tDiff, self.outRx, self.strConn, self.datos, self.logInfo, self.LOG_TIME, self.plugin)
 
 		#######################
 		# closing connections #
@@ -968,10 +964,18 @@ class myConnection(threading.Thread):
 
 		return connInfo
 
-	def fncUploadFile(self, strConn, fileLocal, fileRemote, connInfo):
+	def fncUploadFile(self, strConn, datos, connInfo):
 		### upload configFile via SFTP
 
-		out = [-1,'sftpError']
+		fileRemote = connInfo['hostname'] + "_commands.cfg"
+		fileLocal  = self.DIRECTORY_LOGS + fileRemote
+
+		# We write here the contents of the data to be run inside the CRON
+		# We hence don't log it thereafter.
+		with open(fileLocal,'w') as fc:
+			fc.write(datos)
+
+		out = [-1,'sftpError',fileRemote]
 
 		if connInfo['useSSHTunnel'] == 'yes':
 
@@ -995,9 +999,9 @@ class myConnection(threading.Thread):
 
 			try:
 				sftp.put(fileLocal,'cf3:/' + fileRemote)
-				out = [1,'sftpOk']
+				out = [1,'sftpOk',fileRemote]
 			except:
-				out = [-1,'sftpError']
+				out = [-1,'sftpError',fileRemote]
 
 			sftp.close()
 			transport.close()
@@ -1017,9 +1021,9 @@ class myConnection(threading.Thread):
 
 			try:
 				sftp.put(fileLocal,'cf3:/' + fileRemote)
-				out = [1,'sftpOk']
+				out = [1,'sftpOk',fileRemote]
 			except:
-				out = [-1,'sftpError']
+				out = [-1,'sftpError',fileRemote]
 
 			sftp.close()
 			transport.close()
@@ -1098,32 +1102,7 @@ class myConnection(threading.Thread):
 				aluPass      = "PassN/A"
 				fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
 
-		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)		
-
-	def logFileCreation(self, hostname, DIRECTORY_LOGS, datos, strConn):
-
-		fncPrintConsole(strConn + "Creating files locally for " + hostname + "...")
-
-		# Verify for logs directory
-		if not os.path.exists(DIRECTORY_LOGS):
-			os.makedirs(DIRECTORY_LOGS)
-
-		# Filenames
-		aluFileCommands = hostname + "_commands.cfg"
-		aluFileOutRx	= hostname + "_rx.txt"
-
-		# Complete = Directories + Filenames
-		aluCompleteCmd 	= DIRECTORY_LOGS + aluFileCommands
-		aluCompleteRx	= DIRECTORY_LOGS + aluFileOutRx
-
-		# Create files
-		fCmd = open(aluCompleteCmd, "a")
-		fCmd.write(datos)
-		fCmd.close()
-
-		fRx	= open(aluCompleteRx, "a")
-
-		return(fRx, aluCompleteCmd, aluFileCommands)
+		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)
 
 	def routerRunRoutine(self, datos, connInfo):
 
@@ -1165,11 +1144,19 @@ class myConnection(threading.Thread):
 
 		return(aluLogReason, tDiff, runStatus, outRx)
 
-	def logData(self, connInfo, connId, tDiff, outRx, fRx, strConn, datos, logInfo, LOG_TIME, plugin):
+	def logData(self, connInfo, connId, tDiff, outRx, strConn, datos, logInfo, LOG_TIME, plugin):
+
+		# Filenames
+		aluFileCommands = self.DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
+		aluFileOutRx	= self.DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
+
+		if connInfo['aluLogged'] == 1 and not bool(connInfo['cronTime']):
+			with open(aluFileCommands,'w') as fc:
+				fc.write(datos)
 
 		if connInfo['aluLogged'] == 1:
-			fRx.write(outRx)
-			fRx.close()
+			with open(aluFileOutRx,'w') as fw:
+				fw.write(outRx)
 
 		if connInfo['useSSHTunnel'] == 'yes':
 			serverName = connInfo['jumpHost']
