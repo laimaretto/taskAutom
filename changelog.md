@@ -15,6 +15,9 @@
 - Function `fncAuxGetVal()` is simpler now.
 - Function `routerLogout()` no longer needed.
 - PluginType is now a mandatory parameter and no longer optional.
+- If `cron` is enabled, then `strictOrder=no` and `pluginType=config`.
+- Function `fncSshServer(self, strConn, connInfo, sftp=False)` now has an sftp parameter which becomes True when invoked from within `fncUploadFile()`.
+- Function `runCron()` updated so that all commands are compatible with Nokia's echo (and as such detectable by Netmiko's `cmd_verify`).
 
 
 ## [7.11.9] - 2021-09-29

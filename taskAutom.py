@@ -21,7 +21,6 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 import yaml
-import telnetlib
 import os
 import time
 import threading
@@ -74,34 +73,36 @@ LOG_GLOBAL                = []
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
-		START_SCRIPT   = "# SCRIPT_NONO_START", # no \n in the end
-		FIRST_LINE     = "\n/environment no more\n",
-		LAST_LINE      = "\nexit all\n",
-		FIN_SCRIPT     = "# SCRIPT_NONO_FIN", # no \n in the end
-		VERSION 	   = "show version", # no \n in the end
-		VERSION_REGEX  = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
-		HOSTNAME_REGEX = "(A:|B:)(.+)(>|#)",
-		SHOW_REGEX     = "(\/show|show)\s.+",
-		SEND_CMD_REGEX = "#",
+		START_SCRIPT     = "# SCRIPT_NONO_START", # no \n in the end
+		FIRST_LINE       = "\n/environment no more\n",
+		LAST_LINE        = "\nexit all\n",
+		FIN_SCRIPT       = "# SCRIPT_NONO_FIN", # no \n in the end
+		VERSION 	     = "show version", # no \n in the end
+		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
+		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
+		SHOW_REGEX       = "(\/show|show)\s.+",
+		SEND_CMD_REGEX   = "#",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
 		REMOTE_PORT      = 22,
+		SFTP_PORT        = 22,
 	),
 	nokia_sros_telnet=dict(
-		START_SCRIPT   = "# SCRIPT_NONO_START", # no \n in the end
-		FIRST_LINE     = "\n/environment no more\n",
-		LAST_LINE      = "\nexit all\n",
-		FIN_SCRIPT     = "# SCRIPT_NONO_FIN", # no \n in the end
-		VERSION 	   = "show version", # no \n in the end
-		VERSION_REGEX  = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
-		HOSTNAME_REGEX = "(A:|B:)(.+)(>|#)",
-		SHOW_REGEX     = "(\/show|show)\s.+",
-		SEND_CMD_REGEX = "#",
+		START_SCRIPT     = "# SCRIPT_NONO_START", # no \n in the end
+		FIRST_LINE       = "\n/environment no more\n",
+		LAST_LINE        = "\nexit all\n",
+		FIN_SCRIPT       = "# SCRIPT_NONO_FIN", # no \n in the end
+		VERSION 	     = "show version", # no \n in the end
+		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
+		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
+		SHOW_REGEX       = "(\/show|show)\s.+",
+		SEND_CMD_REGEX   = "#",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
 		REMOTE_PORT      = 23,
+		SFTP_PORT        = 22,
 	),
 )
 
@@ -120,7 +121,8 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	outTxt = outTxt + "Global Parameters:\n"
 
 	outTxt = outTxt + "  Template File:              " + dictParam['pyFile'] + '\n'
-	outTxt = outTxt + "  Template Type:              " + dictParam['pluginType'] + '\n'
+	if bool(dictParam['pluginType']):
+		outTxt = outTxt + "  Template Type:              " + dictParam['pluginType'] + '\n'
 	outTxt = outTxt + "  DATA File:                  " + dictParam['data'] + '\n'
 	outTxt = outTxt + "  DATA UseHeader:             " + dictParam['useHeader'] + '\n'
 	outTxt = outTxt + "  Text File:                  " + "job0_" + dictParam['pyFile'] + ".txt" + '\n'
@@ -720,6 +722,9 @@ class myConnection(threading.Thread):
 				if self.tempDict[key] != '':
 					self.connInfo[key] = self.tempDict[key]
 
+		# SFTP Port
+		self.connInfo['sftpPort'] = DICT_VENDOR[self.connInfo['deviceType']]['SFTP_PORT']
+
 		# Identify connection ports
 		if ":" in self.connInfo['systemIP']:
 			self.connInfo['remotePort'] = int( self.connInfo['systemIP'].split(":")[1] )			
@@ -970,14 +975,7 @@ class myConnection(threading.Thread):
 
 		if connInfo['useSSHTunnel'] == 'yes':
 
-			# We need to rewrite the remotePort because the clientType could be telnet.
-			# There is no problem because the connection to the CLI has already been 
-			# established and is located in connInfo['conn2rtr'].
-			# This is only for the purpose of uploading a file vía SFTP.
-
-			connInfo['remotePort'] = ROUTER_SSH_PORT
-
-			sshSftp = self.fncSshServer(strConn, connInfo)
+			sshSftp       = self.fncSshServer(strConn, connInfo, sftp=True)
 			sftpAccess    = sshSftp[0]
 			sftpPort      = sshSftp[1]
 			sshServerSftp = sshSftp[2]
@@ -1007,14 +1005,14 @@ class myConnection(threading.Thread):
 
 		else:
 
-			transport = paramiko.Transport((connInfo['systemIP'],ROUTER_SSH_PORT))
+			transport = paramiko.Transport((connInfo['systemIP'], connInfo['sftpPort']))
 			transport.connect(None,connInfo['username'],connInfo['password'])
 
 			if connInfo['timosMajor'] > 6:
-				fncPrintConsole(strConn + "uploading file: SFTP: " + str(sftpPort))
+				fncPrintConsole(strConn + "uploading file: SFTP: " + str(connInfo['sftpPort']))
 				sftp = paramiko.SFTPClient.from_transport(transport)
 			else:
-				fncPrintConsole(strConn + "uploading file: SCP: " + str(sftpPort))
+				fncPrintConsole(strConn + "uploading file: SCP: " + str(connInfo['sftpPort']))
 				sftp = SCPClient(transport)
 
 			try:
@@ -1028,9 +1026,8 @@ class myConnection(threading.Thread):
 
 		return out
 
-	def fncSshServer(self, strConn, connInfo):
+	def fncSshServer(self, strConn, connInfo, sftp=False):
 
-		#jumpHost = random.choice(list(SERVERS.keys())) 
 		jumpHost = connInfo['jumpHost']
 		servers  = connInfo['jumpHosts']
 
@@ -1039,11 +1036,16 @@ class myConnection(threading.Thread):
 		tempUser = servers[jumpHost]['user']
 		tempPass = servers[jumpHost]['password']
 
+		if sftp:
+			remotePort = connInfo['sftpPort']
+		else:
+			remotePort = connInfo['remotePort']	
+
 		try:
 			server = SSHTunnelForwarder( 	(tempIp, tempPort), 
 												ssh_username = tempUser, 
 												ssh_password = tempPass, 
-												remote_bind_address = (connInfo['systemIP'], connInfo['remotePort']),
+												remote_bind_address = (connInfo['systemIP'], remotePort),
 												allow_agent = False,
 											)
 			server.start()
@@ -1059,161 +1061,6 @@ class myConnection(threading.Thread):
 			localPort 		   = -1
 
 		return controlPlaneAccess, localPort, server
-
-	def routerLoginTelnet(self, connInfo):
-
-		#	i[0]	meaning
-		#	-1		Timeout
-		#	0		Login:
-		#	1		Connection closed by foreign host
-
-		# NOTA: tener presente que 'i' debe esperarse al primer intento.
-		# Si volvemos, es porque el expect ya nos dio login o timeout
-
-		aluLogged    = -1
-		aluLogUser   = "N/A"
-		aluPass      = "PassN/A"
-		aluLogReason = "N/A"
-		index        = 0
-		tempPass     = "N/A"
-
-		try:
-
-			if connInfo['useSSHTunnel'] == 'yes':
-				connInfo['conn2rtr'] = telnetlib.Telnet(IP_LOCALHOST, connInfo['localPort'])
-			else:
-				connInfo['conn2rtr'] = telnetlib.Telnet(connInfo['systemIP'], connInfo['remotePort'])
-
-			connInfo['conn2rtr'].timeout = ALU_TIME_LOGIN
-			ALU_TELNET_WRITE_TIMEOUT = connInfo['telnetWriteTimeout']
-			systemIP     = connInfo['systemIP']
-
-		except Exception as e:
-
-			connInfo['conn2rtr'] = -1
-			aluLogReason = str(e)
-
-		while aluLogged == -1 and connInfo['conn2rtr'] != -1:
-
-			try:
-				i = connInfo['conn2rtr'].expect(ALU_PROMPT_LOGIN + ALU_PROMPT_CLOSED + ALU_PROMPT , ALU_TIME_LOGIN)
-			except Exception as e:
-				aluLogUser 			= "UserN/A"
-				aluLogReason 		= str(e)
-				aluLogged 			= -1
-				aluPass             = "PassN/A"
-				fncPrintConsole(self.strConn + aluLogReason)
-				return (connInfo['conn2rtr'],aluLogged,aluLogUser,aluLogReason,aluPass)
-
-			# expected: (0, <_sre.SRE_Match object at 0x7f0887a37d98>, 'login:')
-			#fncPrintConsole("i: " + str(i))
-
-			if i[0] == -1:
-				# timeout
-				_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
-				aluLogUser 			= "UserN/A"
-				aluLogged 			= -1
-				fncPrintConsole(self.strConn + aluLogReason)
-				break
-
-			elif i[0] == 0:
-		
-				if index < len(self.ROUTER_USER):
-
-					tempUser = self.ROUTER_USER[index][0]
-					tempPass = self.ROUTER_USER[index][1]
-
-					_, aluLogReason, _ = self.fncWriteToConnection(tempUser, connInfo)
-
-					j = connInfo['conn2rtr'].expect(ALU_PROMPT_PASS + ALU_PROMPT_CLOSED)
-					# expected: (0, <_sre.SRE_Match object at 0x7f0887a37e00>, ' Password:')
-					#fncPrintConsole("j: " + str(j))
-
-					if j[0] == 0:
-						_, aluLogReason, _ = self.fncWriteToConnection(tempPass, connInfo)
-						#fncPrintConsole(self.strConn + "User: " + tempUser + ", Pass: " + tempPass + ", index: " + str(index))
-						aluLogUser 		= tempUser
-						aluLogged		= -1
-						index			= index + 1
-
-
-					elif i[0] == 1:
-						# ALU_PROMPT_CLOSED
-						# Sometimes loggin into a router is not possible
-						# because many users are already logged in into it.
-						_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
-						aluLogUser 			= "UserN/A"
-						#aluLogReason	 	= "TelnetFailedConnection"
-						aluLogged 			= -1
-						aluPass             = "PassN/A"
-						fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-						break
-
-				else:
-					# We've tryed all the user/pass. Quitting.
-					_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
-					aluLogUser 			= tempUser
-					aluLogReason	 	= "MaxLoginReached"
-					aluLogged 			= -1
-					aluPass             = "PassN/A"
-					fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-					break
-
-			elif i[0] == 1:
-				# ALU_PROMPT_CLOSED
-				# Sometimes loggin into a router is not possible
-				# because many users are already logged in into it.
-				_, aluLogReason, _ = self.fncWriteToConnection("\003", connInfo)
-				aluLogUser 			= "UserN/A"
-				aluLogReason 		= "TelnetFailedConnection"
-				aluLogged 			= -1
-				aluPass             = "PassN/A"
-				fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-				break
-
-			elif i[0] > 1:
-				aluLogReason 	= "LoggedOk"
-				aluLogged 		= 1
-				
-		return (connInfo['conn2rtr'],aluLogged,aluLogUser,aluLogReason,tempPass)
-
-	def routerLoginSsh(self, connInfo):
-
-		conn2rtr   = -1
-		aluLogged  = -1
-		index      = 0
-
-		systemIP   = connInfo['systemIP']
-		deviceType = connInfo['deviceType']
-
-		if connInfo['useSSHTunnel'] == 'yes':
-			ip   = IP_LOCALHOST
-			port = connInfo['localPort']
-		else:
-			ip   = connInfo['systemIP']
-			port = connInfo['remotePort']
-
-		while aluLogged == -1 and index < len(self.ROUTER_USER):
-
-			tempUser = self.ROUTER_USER[index][0]
-			tempPass = self.ROUTER_USER[index][1]
-			index 	 = index + 1
-
-			try:
-				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli = False)
-				aluLogged    = 1
-				aluLogReason = "LoggedOk"
-				aluLogUser   = tempUser
-				aluPass      = tempPass
-			except Exception as e:
-				conn2rtr     = -1
-				aluLogged 	 = -1
-				aluLogReason = str(e)				
-				aluLogUser   = tempUser
-				aluPass      = "PassN/A"
-				fncPrintConsole(self.strConn + aluLogReason + ": " + systemIP)
-
-		return (conn2rtr,aluLogged,aluLogUser,aluLogReason,tempPass)
 
 	def routerLogin(self, connInfo):
 
@@ -1358,43 +1205,6 @@ class myConnection(threading.Thread):
 
 		LOG_GLOBAL.append(aluCsvLine)
 
-	def routerLogout(self, connInfo):
-
-		if connInfo['aluLogged'] == 1:
-
-			if connInfo['clientType'] == 'tel':
-
-				#
-				# aluPrompt = [ "A:.*#" , "A:.*>.*#" , "B:.*#", "B:.*>.*#" ]
-				#                 0           1            2         3
-
-				# loggin correct, proceed with logout
-				runStatus, aluLogReason, output = self.fncWriteToConnection(CH_CR, connInfo)
-				i = connInfo['conn2rtr'].expect(ALU_PROMPT, PROMPT_TIMEOUT)
-				#fncPrintConsole("i: " + str(i))
-
-				if i[0] in [0,1,2,3]:
-					# Logging out
-					runStatus, aluLogReason, output = self.fncWriteToConnection("logout", connInfo)
-					
-					try:
-						j = connInfo['conn2rtr'].expect(ALU_PROMPT_LOGOUT, PROMPT_TIMEOUT)
-						#fncPrintConsole("j: " + str(j))
-					
-						if j[0] in [0,1,2,3]:
-							#connInfo['aluLogged'] = -1
-							fncPrintConsole(self.strConn + "Logged out OK from " + connInfo['systemIP'])
-
-					except:
-						#connInfo['aluLogged'] = -1
-						fncPrintConsole(self.strConn + "Something happended. Not properly logged out from " + connInfo['systemIP'])
-
-			elif connInfo['deviceType'] in DICT_VENDOR.keys():
-
-				pass
-
-		return connInfo
-
 	def sshStop(self):
 		self.sshServer.stop()
 		fncPrintConsole(self.strConn + "SSH" + str(self.num) + " stopped ...")
@@ -1404,41 +1214,43 @@ class myConnection(threading.Thread):
 		def setScript(cronName, script):
 
 			cfg = ""
-			cfg = cfg + "script " + cronName + " owner taskAutom\nshutdown\n"
-			cfg = cfg + "location cf3:\\" + script + "\n"
-			cfg = cfg + "no shutdown\n"
-			cfg = cfg + "exit\n"
+			cfg = cfg + 'script "' + cronName + '" owner "taskAutom"\nshutdown\n'
+			cfg = cfg + 'location cf3:\\' + script + '\n'
+			cfg = cfg + 'no shutdown\n'
+			cfg = cfg + 'exit\n'
 			return cfg
 
 		def action(cronName):
 
 			cfg = ""
-			cfg = cfg + "action " + cronName + " owner taskAutom\nshutdown\n"
-			cfg = cfg + "results cf3:\\resultTestCron.txt\n"
-			cfg = cfg + "script " + cronName + " owner taskAutom\n"
-			cfg = cfg + "no shutdown\n"
-			cfg = cfg + "exit\n"
+			cfg = cfg + 'action "' + cronName + '" owner "taskAutom"\nshutdown\n'
+			cfg = cfg + 'results cf3:\\resultTestCron.txt\n'
+			cfg = cfg + 'script "' + cronName + '" owner "taskAutom"\n'
+			cfg = cfg + 'no shutdown\n'
+			cfg = cfg + 'exit\n'
 			return cfg
 
 		def policy(cronName):
 
 			cfg = ""
-			cfg = cfg + "script-policy " + cronName + " owner taskAutom\nshutdown\n"
-			cfg = cfg + "results cf3:\\resultTestCron.txt\n"
-			cfg = cfg + "script " + cronName + " owner taskAutom\n"
-			cfg = cfg + "no shutdown\n"
-			cfg = cfg + "exit\n"			
+			cfg = cfg + 'script-policy "' + cronName + '" owner "taskAutom"\nshutdown\n'
+			cfg = cfg + 'results cf3:\\resultTestCron.txt\n'
+			cfg = cfg + 'script "' + cronName + '" owner "taskAutom"\n'
+			cfg = cfg + 'no shutdown\n'
+			cfg = cfg + 'exit\n'
 			return cfg
 
 		def schedule(timos, cronName, month, weekday, dayOfMonth, hour, minute):
 
+			fin_script = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
+
 			cfg = ""
-			cfg = cfg + "schedule " + cronName + " owner taskAutom\nshutdown\n"
+			cfg = cfg + 'schedule "' + cronName + '" owner "taskAutom"\nshutdown\n'
 
 			if timos > 7:
-				cfg = cfg + "script-policy " + cronName + " owner taskAutom\n"
+				cfg = cfg + 'script-policy "' + cronName + '" owner "taskAutom"\n'
 			else:
-				cfg = cfg + "action " + cronName + " owner taskAutom\n"
+				cfg = cfg + 'action "' + cronName + '" owner "taskAutom"\n'
 			
 			cfg = cfg + "type oneshot\n"
 			cfg = cfg + "day-of-month " + dayOfMonth + "\n"
@@ -1450,7 +1262,7 @@ class myConnection(threading.Thread):
 			cfg = cfg + "exit\n"
 			cfg = cfg + "exit all\n"
 			cfg = cfg + "admin save\n"
-			cfg = cfg + "echo " + ALU_FIN_SCRIPT + "\n"
+			cfg = cfg + "echo " + fin_script + "\n"
 			return cfg
 
 		cronName   = str(connInfo['cronTime'][0])
@@ -1459,6 +1271,8 @@ class myConnection(threading.Thread):
 		dayOfMonth = str(connInfo['cronTime'][3])
 		hour       = str(connInfo['cronTime'][4])
 		minute     = str(connInfo['cronTime'][5])
+
+		start_script = DICT_VENDOR[connInfo['deviceType']]['START_SCRIPT']
 
 		cfg = ""
 
@@ -1477,7 +1291,7 @@ class myConnection(threading.Thread):
 			cfg = cfg + action(cronName)
 			cfg = cfg + schedule(connInfo['timosMajor'], cronName, month, weekday, dayOfMonth, hour, minute)
 
-		cfg = "/environment no more\necho " + ALU_START_SCRIPT + "\n" + cfg
+		cfg = "/environment no more\necho " + start_script + "\n" + cfg
 
 		return cfg
 
@@ -1498,6 +1312,9 @@ def fncRun(dictParam):
 
 	# CronTime
 	dictParam['cronTime'] = verifyCronTime(dictParam['cronTime'])
+	if bool(dictParam['cronTime']):
+		dictParam['pluginType']  = 'config'
+		dictParam['strictOrder'] = 'no'
 
 	# Servers
 	dictParam['jumpHosts'] = {}
@@ -1667,7 +1484,9 @@ if __name__ == '__main__':
 		dictParam['outputJob'] == 2 and 
 		dictParam['username'] and 
 		dictParam['logInfo'] and 
-		dictParam['pluginType']
+		(
+			dictParam['pluginType'] or dictParam['cronTime']
+		)
 		):
 
 		print("\n#######################################")
