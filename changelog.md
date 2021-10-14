@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.12.2] - 2021-10-14
+
+- Comments in the code
+- Show CRON, inventory only if configured.
 
 ## [7.12.1] - 2021-10-11
 
