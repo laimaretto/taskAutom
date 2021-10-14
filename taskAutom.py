@@ -131,7 +131,8 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	if dictParam['genMop'] == 'yes':
 		outTxt = outTxt + "  MOP filename                " + "job0_" + dictParam['pyFile'] + ".docx\n"
 
-	outTxt = outTxt + "  Inventory file              " + str(dictParam['inventoryFile']) + "\n"
+	if bool(dictParam['inventoryFile']):
+		outTxt = outTxt + "  Inventory file              " + str(dictParam['inventoryFile']) + "\n"
 
 
 	outTxt = outTxt + "  Verify Commands:            " + dictParam['cmdVerify'] + '\n'	
@@ -145,10 +146,8 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	else:
 		outTxt = outTxt + "  Folder logInfo:             " + "None" + '\n'
 
-	if len(dictParam['cronTime']):
+	if bool(dictParam['cronTime']):
 		outTxt = outTxt + "  CRON Config:                " + str(dictParam['cronTime']) + '\n'
-	else:
-		outTxt = outTxt + "  CRON Config:                " + "None" + '\n'
 
 	outTxt = outTxt + "  Total Threads:              " + str(dictParam['progNumThreads']) + '\n'
 
