@@ -581,22 +581,17 @@ def renderMop(aluCliLineJob0, pyFile, genMop):
 
 def renderCliLine(IPconnect, dictParam, mod, data, i):
 
-	#   i             0         1        2        3                    4                 5     6  7
-	#   0   10.2.20.124    GBASUR  0.0.0.0  0.0.1.3      CF152_LPT70_SR7  TiMOS-C-16.0.R6      1  4
-	#   1     10.2.20.4  GBANORTE  0.0.0.0  0.0.1.3      CF104_MRL70_SR7  TiMOS-C-16.0.R6   9886  4
-	#   2     10.2.20.9  GBANORTE  0.0.0.0  0.0.1.3      CF103_MOR70_SR7  TiMOS-C-16.0.R6   9886  4
-	#   3     10.2.60.1  GBANORTE  0.0.1.3  0.0.1.3     C1337_VRH70_SARX   TiMOS-B-7.0.R7   9886  4
-	#   4    10.2.60.10  GBANORTE  0.0.1.3  0.0.1.3     C1569_IT570_SARX   TiMOS-B-7.0.R7   9886  4
-	#   5    10.2.60.11  GBANORTE  0.0.1.3  0.0.1.3     C3895_COM70_SARX   TiMOS-B-9.0.R3   9886  4
-	#   6    10.2.60.12  GBANORTE  0.0.1.3  0.0.1.3     C1679_SCH70_SARX   TiMOS-B-9.0.R3   9886  4
-	#   7    10.2.60.13  GBANORTE  0.0.1.3  0.0.1.3     CF614_CS270_SARX   TiMOS-B-7.0.R7   9886  4
-	#   8    10.2.60.14  GBANORTE  0.0.1.3  0.0.1.3    CF985_IG270_IXR-e  TiMOS-C-19.10.R8  9886  4
-	#   9   10.2.60.140  GBANORTE  0.0.1.3  0.0.1.3     C1272_R9J70_SARX   TiMOS-B-7.0.R7   9886  4
-	#   10   10.2.60.15  GBANORTE  0.0.1.3  0.0.1.3  CF02228_I7E70_IXR-e  TiMOS-C-19.10.R8  9886  4
-	#   11   10.2.60.16  GBANORTE  0.0.1.3  0.0.1.3     C1563_IT670_SARX   TiMOS-B-7.0.R7   9886  4
-	#   12   10.2.60.17  GBANORTE  0.0.1.3  0.0.1.3     C2376_LAN70_SARX   TiMOS-B-9.0.R3   9886  4
-	#   13   10.2.60.19  GBANORTE  0.0.1.3  0.0.1.3     CF133_LLR70_SARX   TiMOS-B-9.0.R3   9886  4
-	#   14    10.2.60.2  GBANORTE  0.0.1.3  0.0.1.3     C1568_IGC71_SARM   TiMOS-B-9.0.R3   9886  4
+	#   i             0         1        2        3             4                 5     6  7
+	#   0     10.3.0.41    ZONA_X  0.0.0.0  0.0.1.3      ROUTER_A  TiMOS-C-16.0.R6      1  4
+	#   1     10.3.0.42    ZONA_Y  0.0.0.0  0.0.1.3      ROUTER_B  TiMOS-C-16.0.R6   9886  4
+	#   2     10.3.0.43    ZONA_Y  0.0.0.0  0.0.1.3      ROUTER_C  TiMOS-C-16.0.R6   9886  4
+	#   3     10.3.0.44    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_D  TiMOS-B-7.0.R7    9886  4
+	#   4     10.3.0.45    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_E  TiMOS-B-7.0.R7    9886  4
+	#   5     10.3.0.46    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_F  TiMOS-B-9.0.R3    9886  4
+	#   6     10.3.0.47    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_G  TiMOS-B-9.0.R3    9886  4
+	#   7     10.3.0.48    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_H  TiMOS-B-7.0.R7    9886  4
+	#   8     10.3.0.49    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_I  TiMOS-C-19.10.R8  9886  4
+	#   9     10.3.0.50    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_J  TiMOS-B-7.0.R7    9886  4
 
 
 	aluCliLine = ""
@@ -1403,7 +1398,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.12.1' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.12.2' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
