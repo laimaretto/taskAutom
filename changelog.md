@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.13.1] - 2022-03-17
+
+- When using option `-pt show` a `json` file is created where output is stored. Each `show` command is used as a key inside the json file. This will help for output checking.
+
 ## [7.12.2] - 2021-10-14
 
 - Comments in the code

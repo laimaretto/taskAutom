@@ -15,6 +15,7 @@ from sshtunnel import SSHTunnelForwarder
 from netmiko import ConnectHandler
 from scp import SCPClient
 import pandas as pd
+import json
 
 import docx
 from docx.enum.style import WD_STYLE_TYPE 
@@ -776,6 +777,7 @@ class myConnection(threading.Thread):
 						self.tDiff 					  = self.b[1]
 						self.runStatus      		  = self.b[2]
 						self.outRx          		  = self.b[3]
+						self.outRxJson        		  = self.b[4]
 
 				else:
 					
@@ -785,6 +787,7 @@ class myConnection(threading.Thread):
 					self.tDiff 					  = self.b[1]
 					self.runStatus      		  = self.b[2]
 					self.outRx          		  = self.b[3]
+					self.outRxJson        		  = self.b[4]
 
 				if self.runStatus == 1:
 
@@ -794,7 +797,7 @@ class myConnection(threading.Thread):
 
 					fncPrintConsole(self.strConn + str(self.connInfo['aluLogReason']))
 
-		self.logData(self.connInfo, self.num, self.tDiff, self.outRx, self.strConn, self.datos, self.logInfo, self.LOG_TIME, self.plugin)
+		self.logData(self.connInfo, self.num, self.tDiff, self.outRx, self.outRxJson, self.strConn, self.datos, self.logInfo, self.LOG_TIME, self.plugin)
 
 		#######################
 		# closing connections #
@@ -820,6 +823,9 @@ class myConnection(threading.Thread):
 
 		expectString       = DICT_VENDOR[connInfo['deviceType']]['SEND_CMD_REGEX']
 
+		output = ''
+		outputJson = {}		
+
 		if connInfo['cmdVerify'] == 'yes':
 			cmdVerify = True
 		else:
@@ -842,11 +848,11 @@ class myConnection(threading.Thread):
 
 			elif pluginType == 'show':
 				
-				output = ''
-				
 				try:
 					for cmd in inText:
-						output = output + '\n' + cmd + '\n' + conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+						rx     = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+						output = output + '\n' + cmd + '\n' + rx
+						outputJson[cmd] = rx
 					aluLogReason = ""
 					runStatus    = 1
 				except Exception as e:
@@ -865,14 +871,14 @@ class myConnection(threading.Thread):
 				aluLogReason = str(e)
 				runStatus    = -1
 
-		return runStatus, aluLogReason, output
+		return runStatus, aluLogReason, output, outputJson
 
 	def fncAuxGetVal(self, connInfo, what):
 
 		if what == "timos":
 
 			inText  = DICT_VENDOR[connInfo['deviceType']]['VERSION']
-			runStatus, aluLogReason, rx = self.fncWriteToConnection(inText, connInfo)
+			runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
 			match   = re.compile(inRegex).search(rx)
 			try:
@@ -1114,7 +1120,7 @@ class myConnection(threading.Thread):
 			fncPrintConsole(self.strConn + "Running script per line...", show=1)
 
 		datos = datos.split('\n')
-		runStatus, aluLogReason, outRx = self.fncWriteToConnection(datos, connInfo)
+		runStatus, aluLogReason, outRx, outRxJson = self.fncWriteToConnection(datos, connInfo)
 
 		tEnd  = time.time()
 		tDiff = tEnd - tStart
@@ -1136,13 +1142,14 @@ class myConnection(threading.Thread):
 
 		fncPrintConsole(self.strConn + "Time: " + fncFormatTime(tDiff) + ". Result: " + aluLogReason, show=1)
 
-		return(aluLogReason, tDiff, runStatus, outRx)
+		return(aluLogReason, tDiff, runStatus, outRx, outRxJson)
 
-	def logData(self, connInfo, connId, tDiff, outRx, strConn, datos, logInfo, LOG_TIME, plugin):
+	def logData(self, connInfo, connId, tDiff, outRx, outRxJson, strConn, datos, logInfo, LOG_TIME, plugin):
 
 		# Filenames
-		aluFileCommands = self.DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
-		aluFileOutRx	= self.DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
+		aluFileCommands  = self.DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
+		aluFileOutRx	 = self.DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
+		aluFileOutRxJson = self.DIRECTORY_LOGS + connInfo['hostname'] + "_rx.json"
 
 		if connInfo['aluLogged'] == 1 and not bool(connInfo['cronTime']):
 			with open(aluFileCommands,'w') as fc:
@@ -1151,6 +1158,11 @@ class myConnection(threading.Thread):
 		if connInfo['aluLogged'] == 1:
 			with open(aluFileOutRx,'w') as fw:
 				fw.write(outRx)
+
+		if connInfo['aluLogged'] == 1 and outRxJson != {}:
+			outRxJson['name'] = connInfo['hostname']
+			with open(aluFileOutRxJson,'w') as fj:
+				json.dump(outRxJson,fj)
 
 		if connInfo['useSSHTunnel'] == 'yes':
 			serverName = connInfo['jumpHost']
@@ -1397,7 +1409,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.12.2' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.13.1' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
