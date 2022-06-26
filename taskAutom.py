@@ -853,8 +853,8 @@ class myConnection(threading.Thread):
 				
 				try:
 					for cmd in inText:
-						rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-						#rx        = conn2rtr.send_command(cmd, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						#rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						rx        = conn2rtr.send_command(cmd, cmd_verify=cmdVerify, read_timeout=readTimeOut)
 						outputTxt = outputTxt + '\n' + cmd + '\n' + rx
 						outputJson[cmd] = rx
 					aluLogReason = ""
