@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2020 Lucas Aimaretto / laimaretto@gmail.com
+# Copyright (C) 2015-2022 Lucas Aimaretto / laimaretto@gmail.com
 #
 # This is taskAutom
 #
@@ -9,9 +9,8 @@
 # but WITHOUT ANY WARRANTY of any kind whatsoever.
 #
 
-from tkinter.tix import FileSelectBox
 import paramiko
-from sshtunnel import SSHTunnelForwarder
+import sshtunnel
 from netmiko import ConnectHandler
 from scp import SCPClient
 import pandas as pd
@@ -83,7 +82,7 @@ DICT_VENDOR = dict(
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
-		SEND_CMD_REGEX   = "#",
+		SEND_CMD_REGEX   = r"#",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
@@ -99,7 +98,7 @@ DICT_VENDOR = dict(
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
-		SEND_CMD_REGEX   = "#",
+		SEND_CMD_REGEX   = r"#",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
@@ -169,8 +168,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	else:
 		outTxt = outTxt + "  Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) + '\n'
 	
-	outTxt = outTxt + "  Delay Factor:               " + str(dictParam['delayFactor']) + '\n'
-	outTxt = outTxt + "  MaxLoops:                   " + str(dictParam['maxLoops']) + '\n'
+	outTxt = outTxt + "  Read Timeout:               " + str(dictParam['readTimeOut']) + '\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
 	outTxt = outTxt + "  Device Type:                " + str(dictParam['deviceType']) + '\n'
 
@@ -182,17 +180,17 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + separator + '\n'
 
 		routers = LOG_GLOBAL
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','delayFactor','maxLoops','servers']
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers']
 		df = pd.DataFrame(routers,columns=columns)
 
 		outTxt = outTxt + "\nTiming:\n"
 
 
-		outTxt = outTxt + "  timeMin                     " + fncFormatTime(df['time'].min()) + "s" + '\n'
-		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(df['time'].mean()) + "s" + '\n'
-		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(df['time'].max()) + "s" + '\n'
-		outTxt = outTxt + "  timeTotal:                  " + fncFormatTime(timeTotal) + "s" + '\n'
-		outTxt = outTxt + "  timeTotal/totalRouters:     " + fncFormatTime(timeTotal/len(routers)) + "s" + '\n'
+		outTxt = outTxt + "  timeMin                     " + fncFormatTime(df['time'].min()) + '\n'
+		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(df['time'].mean()) + '\n'
+		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(df['time'].max()) + '\n'
+		outTxt = outTxt + "  timeTotal:                  " + fncFormatTime(timeTotal) + '\n'
+		outTxt = outTxt + "  timeTotal/totalRouters:     " + fncFormatTime(timeTotal/len(routers)) + '\n'
 
 		outTxt = outTxt + separator + '\n'
 
@@ -228,11 +226,26 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 	print(outTxt)
 
-def fncFormatTime(timeFloat):
+def fncFormatTime(timeFloat, adjust=True):
 
 	move = 100
 
-	return str( float(int(timeFloat*move))/move )
+	if adjust==True:
+
+		unit = 's'
+
+		if timeFloat > 120:
+			timeFloat = timeFloat / 60
+			unit = 'm'
+
+		timeFloat = float(int(timeFloat*move))/move	
+
+		return str( timeFloat ) + unit
+
+	else:
+
+		return float(int(timeFloat*move))/move
+
 
 def fncPrintConsole(inText, show=1):
 	#logging.debug(inText)
@@ -452,7 +465,7 @@ def verifyConfigFile(config_file):
 
 def verifyInventory(inventoryFile, jumpHostsFile):
 
-	columns = ['ip','username','password','deviceType','useSSHTunnel','delayFactor','maxLoops','jumpHost']
+	columns = ['ip','username','password','deviceType','useSSHTunnel','readTimeOut','jumpHost']
 
 	try:
 		df = pd.read_csv(inventoryFile)
@@ -479,8 +492,7 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 		jh   = row.jumpHost
 		dt   = row.deviceType
 		tun  = row.useSSHTunnel
-		dfac = row.delayFactor
-		sml  = row.maxLoops
+		rto  = row.readTimeOut
 
 		if tun not in ['yes','no','']:
 			print("Inventory: The router " + ip + " is not using a valid sshTunnel option. For default, leave empty. Quitting...")
@@ -498,18 +510,11 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 			print("Inventory: The router " + ip + " is not using a valid deviceType. For default, leave empty. Quitting...")
 			quit()
 
-		if dfac != '':
+		if rto != '':
 			try:
-				float(dfac)
+				int(rto)
 			except:
-				print("Inventory: The router " + ip + " has not a valid delayFactor. For default, leave empty. Quitting...")
-				quit()
-
-		if sml != '':
-			try:
-				float(sml)
-			except:
-				print("Inventory: The router " + ip + " has not a valid maxLoops. For default, leave empty. Quitting...")
+				print("Inventory: The router " + ip + " has not a valid ReadTimeOut. For default, leave empty. Quitting...")
 				quit()				
 
 
@@ -674,7 +679,6 @@ class myConnection(threading.Thread):
 		self.outputJob 	      = dictParam['outputJob']
 		self.DIRECTORY_LOGS   = dictParam['DIRECTORY_LOGS']
 		self.ALU_FILE_OUT_CSV = dictParam['ALU_FILE_OUT_CSV']
-		self.delayFactor      = dictParam['delayFactor']
 		self.logInfo          = dictParam['logInfo']
 		self.LOG_TIME         = dictParam['LOG_TIME']
 		self.plugin           = dictParam['pyFile']
@@ -695,14 +699,13 @@ class myConnection(threading.Thread):
 			'cronTime':dictParam['cronTime'],
 			'sshServer':-1,
 			'conn2rtr':-1,
-			'delayFactor':dictParam['delayFactor'],
-			'maxLoops':dictParam['maxLoops'],
 			'jumpHosts':dictParam['jumpHosts'],
 			'inventory':dictParam['inventory'],
 			'strictOrder':dictParam['strictOrder'],
 			'deviceType':dictParam['deviceType'],
 			'pluginType':dictParam['pluginType'],
 			'cmdVerify':dictParam['cmdVerify'],
+			'readTimeOut':dictParam['readTimeOut'],
 		}
 
 		# Do we you use jumpHosts?
@@ -738,6 +741,7 @@ class myConnection(threading.Thread):
 		self.strConn    = "Con-" + str(self.num) + "| "
 		self.outRx 	    = ''
 		self.fRx        = ''
+		self.outRxJson  = {}
 		self.runStatus  = 1
 		self.useCron    = len(self.connInfo['cronTime'])
 		
@@ -818,12 +822,11 @@ class myConnection(threading.Thread):
 
 		conn2rtr           = connInfo['conn2rtr']
 		pluginType         = connInfo['pluginType']
-		maxLoops           = connInfo['maxLoops']
-		delayFactor        = connInfo['delayFactor']
+		readTimeOut        = connInfo['readTimeOut']
 
 		expectString       = DICT_VENDOR[connInfo['deviceType']]['SEND_CMD_REGEX']
 
-		output = ''
+		outputTxt  = ''
 		outputJson = {}		
 
 		if connInfo['cmdVerify'] == 'yes':
@@ -838,11 +841,11 @@ class myConnection(threading.Thread):
 			if pluginType == 'config':
 
 				try:
-					output       = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+					outputTxt    = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, read_timeout=readTimeOut)
 					aluLogReason = ""
 					runStatus    = 1
 				except Exception as e:
-					output 	 	 = ''
+					outputTxt	 = ''
 					aluLogReason = str(e)
 					runStatus    = -1						
 
@@ -850,28 +853,29 @@ class myConnection(threading.Thread):
 				
 				try:
 					for cmd in inText:
-						rx     = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
-						output = output + '\n' + cmd + '\n' + rx
+						rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						#rx        = conn2rtr.send_command(cmd, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						outputTxt = outputTxt + '\n' + cmd + '\n' + rx
 						outputJson[cmd] = rx
 					aluLogReason = ""
 					runStatus    = 1
 				except Exception as e:
-					output       = ''
+					outputTxt    = ''
 					aluLogReason = str(e)
 					runStatus    = -1
 
 		elif type(inText) == type(''):
 			
 			try:
-				output       = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+				outputTxt    = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
 				aluLogReason = ""
 				runStatus    = 1					
 			except Exception as e:
-				output       = ''
+				outputTxt    = ''
 				aluLogReason = str(e)
 				runStatus    = -1
 
-		return runStatus, aluLogReason, output, outputJson
+		return runStatus, aluLogReason, outputTxt, outputJson
 
 	def fncAuxGetVal(self, connInfo, what):
 
@@ -929,8 +933,6 @@ class myConnection(threading.Thread):
 			connInfo['controlPlaneAccess'] 	= tunnel[0]
 			connInfo['localPort'] 		   	= tunnel[1]
 			connInfo['sshServer']    		= tunnel[2]
-
-			fncPrintConsole(self.strConn + "Trying router " + IP_LOCALHOST + ":" + str(connInfo['localPort']) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
 
 		else:
 
@@ -1043,26 +1045,31 @@ class myConnection(threading.Thread):
 		if sftp:
 			remotePort = connInfo['sftpPort']
 		else:
-			remotePort = connInfo['remotePort']	
+			remotePort = connInfo['remotePort']
 
-		try:
-			server = SSHTunnelForwarder( 	(tempIp, tempPort), 
-												ssh_username = tempUser, 
-												ssh_password = tempPass, 
-												remote_bind_address = (connInfo['systemIP'], remotePort),
-												allow_agent = False,
-											)
-			server.start()
-			localPort = server.local_bind_port
-			controlPlaneAccess = 1
-			fncPrintConsole(self.strConn + "sshServerTunnel on port: " + str(localPort))
+		systemIP = connInfo['systemIP']
 
-		except Exception as e:
+		server = sshtunnel.SSHTunnelForwarder( 	(tempIp, tempPort), 
+											ssh_username = tempUser, 
+											ssh_password = tempPass, 
+											remote_bind_address = (systemIP, remotePort),
+											allow_agent = False,
+										)
+		server.start()
+		localPort = server.local_bind_port
+		controlPlaneAccess = 1
 
-			fncPrintConsole(strConn, e)
+		fncPrintConsole(self.strConn + "Trying sshServerTunnel on port: " + str(localPort))
+		fncPrintConsole(self.strConn + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
+
+		server.check_tunnels()
+
+		if server.tunnel_is_up[('0.0.0.0',localPort)] == False:
 			fncPrintConsole(strConn + "Error SSH Tunnel")
+			server.stop()
 			controlPlaneAccess = -1
 			localPort 		   = -1
+			server             = -1
 
 		return controlPlaneAccess, localPort, server
 
@@ -1188,9 +1195,8 @@ class myConnection(threading.Thread):
 			connInfo['deviceType'],
 			str(len(datos.split('\n'))),
 			str(len(outRx.split('\n'))),
-			float(fncFormatTime(tDiff)),
-			str(connInfo['delayFactor']),
-			str(connInfo['maxLoops']),
+			float(fncFormatTime(tDiff, adjust=False)),
+			str(connInfo['readTimeOut']),
 			str(lenServers),
 			]
 
@@ -1409,7 +1415,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.13.1' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.0' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
@@ -1428,8 +1434,7 @@ if __name__ == '__main__':
 	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin.', choices=['show','config'])
 	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])	
 	parser1.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
-	parser1.add_argument('-df' ,'--delayFactor',   type=float, help='SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1', default=1,)
-	parser1.add_argument('-sml' ,'--maxLoops',    type=float, help='SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000', default=5000)
+	parser1.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
 	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
 	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
@@ -1453,8 +1458,6 @@ if __name__ == '__main__':
 		logInfo 			= args.logInfo,
 		useSSHTunnel 		= args.sshTunnel,
 		cronTime            = args.cronTime,
-		delayFactor         = args.delayFactor,
-		maxLoops            = args.maxLoops,
 		jumpHostsFile       = args.jumpHostsFile,
 		genMop              = args.genMop,
 		strictOrder         = args.strictOrder,
@@ -1465,6 +1468,7 @@ if __name__ == '__main__':
 		cmdVerify           = args.cmdVerify,
 		sshDebug            = args.sshDebug,
 		dataGroupColumn     = args.dataGroupColumn,
+		readTimeOut         = args.readTimeOut,
 	)
 
 	### Rady to go ...

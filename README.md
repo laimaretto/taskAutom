@@ -117,12 +117,12 @@ def construir_cliLine(m, datos, lenData, mop=None):
 
 By default, `taskAutom` connects to each and every router that exists inside the DATA data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
-ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|deviceType|jumpHost|maxLoops
---|--------|--------|------------|-------------|-----------|----------|--------|---------
-10.0.0.1|user1|pass1|yes||0.5|nokia_sros|server1|1000
-10.0.0.2|user2|pass2|no|90||nokia_sros_telnet|
+ip|username|password|useSSHTunnel|readTimeOut|deviceType|jumpHost|
+--|--------|--------|------------|----------|--------|---------
+10.0.0.1|user1|pass1|yes|15|nokia_sros|server1|1000
+10.0.0.2|user2|pass2|no|90|nokia_sros_telnet|
 
-If fieds in the CSV are left empty, those are replaced by default values.
+If fieds in the inventory CSV file are left empty, default values are used.
 
 ### MOP
 
@@ -190,10 +190,8 @@ optional arguments:
                         Generate MOP. Default=no
   -crt CRONTIME [CRONTIME ...], --cronTime CRONTIME [CRONTIME ...]
                         Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).
-  -df DELAYFACTOR, --delayFactor DELAYFACTOR
-                        SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1
-  -sml MAXLOOPS, --maxLoops MAXLOOPS
-                        SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000
+  -rto READTIMEOUT, --readTimeOut READTIMEOUT
+                        Read Timeout. Time in seconds which to wait for data from router. Default=10
   -tun {no,yes}, --sshTunnel {no,yes}
                         Use SSH Tunnel to routers. Default=yes
   -dt {nokia_sros,nokia_sros_telnet}, --deviceType {nokia_sros,nokia_sros_telnet}
@@ -206,4 +204,5 @@ optional arguments:
                         Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes
   -sd {no,yes}, --sshDebug {no,yes}
                         Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no
+
 ```
