@@ -1116,7 +1116,7 @@ class myConnection(threading.Thread):
 		# Sending script to ALU
 		tStart 		 = time.time()
 
-		fin_script       = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
+		fin_script       = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT'].replace("echo ","").replace("\n","")
 		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
 		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
 		info_error_list  = DICT_VENDOR[connInfo['deviceType']]['INFO_ERROR_LIST']
