@@ -4,12 +4,15 @@
 
 - Upgrade of `netmiko` library to version 4.1.0
     - `delayFactor` and `maxLoops` are no longer used;
-    - New parameter `readTimeOut` is used insted. In seconds, sets the amount of time `taskAutom` waits for output from router.
+    - New parameter `readTimeOut` is used insted. In seconds, sets the amount of time `taskAutom` waits for output from router. Default to 10 seconds.
     - This change also affects the building of the inventory file, if used.
 - Upgrade of `paramiko` library to version 2.11.0
 - Better detection of ssh-tunnels under the function `fncSshServer()`.
 - Final report shows times in minutes if greater than 120s.
-- In function `fncWriteToConnection()` the `expect_string` was disabled from the `send_command()` method.
+- In the definition of the dictionary `DICT_VENDOR`
+    - the `expect_string` was changed to `r'#'`.
+    - the start and end scripts are now `"echo SCRIPT_NONO_START\n"` and `"echo SCRIPT_NONO_FIN\n"`.
+- The output in json format now includes a new key, with the IP of the router.
 
 ## [7.13.1] - 2022-03-17
 

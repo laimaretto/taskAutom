@@ -74,10 +74,10 @@ LOG_GLOBAL                = []
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
-		START_SCRIPT     = "# SCRIPT_NONO_START", # no \n in the end
+		START_SCRIPT     = "echo SCRIPT_NONO_START\n", 
 		FIRST_LINE       = "\n/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "# SCRIPT_NONO_FIN", # no \n in the end
+		FIN_SCRIPT       = "echo SCRIPT_NONO_FIN\n",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
@@ -90,10 +90,10 @@ DICT_VENDOR = dict(
 		SFTP_PORT        = 22,
 	),
 	nokia_sros_telnet=dict(
-		START_SCRIPT     = "# SCRIPT_NONO_START", # no \n in the end
+		START_SCRIPT     = "echo SCRIPT_NONO_START\n", 
 		FIRST_LINE       = "\n/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "# SCRIPT_NONO_FIN", # no \n in the end
+		FIN_SCRIPT       = "echo SCRIPT_NONO_FIN\n",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
@@ -853,8 +853,8 @@ class myConnection(threading.Thread):
 				
 				try:
 					for cmd in inText:
-						#rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-						rx        = conn2rtr.send_command(cmd, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						#rx        = conn2rtr.send_command(cmd, cmd_verify=cmdVerify, read_timeout=readTimeOut)
 						outputTxt = outputTxt + '\n' + cmd + '\n' + rx
 						outputJson[cmd] = rx
 					aluLogReason = ""
@@ -1168,6 +1168,7 @@ class myConnection(threading.Thread):
 
 		if connInfo['aluLogged'] == 1 and outRxJson != {}:
 			outRxJson['name'] = connInfo['hostname']
+			outRxJson['ip']   = connInfo['systemIP']
 			with open(aluFileOutRxJson,'w') as fj:
 				json.dump(outRxJson,fj)
 
