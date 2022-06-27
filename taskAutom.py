@@ -9,6 +9,7 @@
 # but WITHOUT ANY WARRANTY of any kind whatsoever.
 #
 
+from distutils import cmd
 import paramiko
 import sshtunnel
 from netmiko import ConnectHandler
@@ -82,7 +83,7 @@ DICT_VENDOR = dict(
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
-		SEND_CMD_REGEX   = r"#",
+		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
@@ -98,7 +99,7 @@ DICT_VENDOR = dict(
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
-		SEND_CMD_REGEX   = r"#",
+		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
@@ -854,7 +855,6 @@ class myConnection(threading.Thread):
 				try:
 					for cmd in inText:
 						rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-						#rx        = conn2rtr.send_command(cmd, cmd_verify=cmdVerify, read_timeout=readTimeOut)
 						outputTxt = outputTxt + '\n' + cmd + '\n' + rx
 						outputJson[cmd] = rx
 					aluLogReason = ""
@@ -1080,7 +1080,7 @@ class myConnection(threading.Thread):
 		index      = 0
 
 		systemIP   = connInfo['systemIP']
-		deviceType = connInfo['deviceType']
+		deviceType = connInfo['deviceType']	
 
 		if connInfo['useSSHTunnel'] == 'yes':
 			ip   = IP_LOCALHOST
@@ -1096,7 +1096,7 @@ class myConnection(threading.Thread):
 			index 	 = index + 1
 
 			try:
-				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli = False)
+				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False)
 				aluLogged    = 1
 				aluLogReason = "LoggedOk"
 				aluLogUser   = tempUser
