@@ -71,12 +71,13 @@ ALU_HOSTNAME              = [b"(A:|B:)(.+)(>|#)"]
 CH_CR					  = "\n"
 CH_COMA 				  = ","
 LOG_GLOBAL                = []
+LOG_CONSOLE               = []
 
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
 		START_SCRIPT     = "echo SCRIPT_NONO_START\n", 
-		FIRST_LINE       = "\n/environment no more\n",
+		FIRST_LINE       = "/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
 		FIN_SCRIPT       = "echo SCRIPT_NONO_FIN\n",
 		VERSION 	     = "show version", # no \n in the end
@@ -127,10 +128,11 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + "  Template Type:              " + dictParam['pluginType'] + '\n'
 	outTxt = outTxt + "  DATA File:                  " + dictParam['data'] + '\n'
 	outTxt = outTxt + "  DATA UseHeader:             " + dictParam['useHeader'] + '\n'
-	outTxt = outTxt + "  Text File:                  " + "job0_" + dictParam['pyFile'] + ".txt" + '\n'
+	outTxt = outTxt + "  Folder logInfo:             " + dictParam['logInfo'] + '\n'
+	outTxt = outTxt + "  Text File:                  " + dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".txt" + '\n'
 
 	if dictParam['genMop'] == 'yes':
-		outTxt = outTxt + "  MOP filename                " + "job0_" + dictParam['pyFile'] + ".docx\n"
+		outTxt = outTxt + "  MOP filename                " + dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".docx\n"
 
 	if bool(dictParam['inventoryFile']):
 		outTxt = outTxt + "  Inventory file              " + str(dictParam['inventoryFile']) + "\n"
@@ -141,11 +143,6 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 	if dictParam['strictOrder'] == 'yes':
 		outTxt = outTxt + "  Halt-on-Error:              " + dictParam['haltOnError'] + '\n'
-
-	if dictParam['logInfo']:
-		outTxt = outTxt + "  Folder logInfo:             " + dictParam['logInfo'] + '\n'
-	else:
-		outTxt = outTxt + "  Folder logInfo:             " + "None" + '\n'
 
 	if bool(dictParam['cronTime']):
 		outTxt = outTxt + "  CRON Config:                " + str(dictParam['cronTime']) + '\n'
@@ -186,7 +183,6 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 		outTxt = outTxt + "\nTiming:\n"
 
-
 		outTxt = outTxt + "  timeMin                     " + fncFormatTime(df['time'].min()) + '\n'
 		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(df['time'].mean()) + '\n'
 		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(df['time'].max()) + '\n'
@@ -223,6 +219,10 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		with open(DIRECTORY_LOG_INFO + '00_report.txt','w') as f:
 			f.write(outTxt)
 
+		with open(DIRECTORY_LOG_INFO + '00_log_console.txt','w') as f:
+			for k in LOG_CONSOLE:
+				f.write(k+'\n')		
+
 	outTxt = outTxt + separator + '\n'
 
 	print(outTxt)
@@ -252,7 +252,9 @@ def fncPrintConsole(inText, show=1):
 	#logging.debug(inText)
 	localtime   = time.localtime()
 	if show:
-		print(str(time.strftime("%H:%M:%S", localtime)) + "| " + inText)
+		output = str(time.strftime("%H:%M:%S", localtime)) + "| " + inText
+		print(output)
+		LOG_CONSOLE.append(output)
 
 def run_mi_thread(i, CliLine, ip, dictParam):
 	"""[summary]
@@ -438,6 +440,8 @@ def verifyPlugin(pyFile):
 		if pyFile.split(".")[-1] == "py":
 			pyFile = pyFile.split(".")[0]
 			#exec ("from " + pyFile + " import construir_cliLine")
+			if '/' in pyFile:
+				pyFile = pyFile.replace('/','.')
 			mod = importlib.import_module(pyFile)
 			print(mod)
 		else:
@@ -523,7 +527,7 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 
 	return df3
 
-def renderMop(aluCliLineJob0, pyFile, genMop):
+def renderMop(aluCliLineJob0, dictParam):
 	"""[Generates a MOP based on the CSV and plugin information]
 
 	Args:
@@ -534,10 +538,14 @@ def renderMop(aluCliLineJob0, pyFile, genMop):
 		None
 	"""
 
-	job0docx = "job0_" + pyFile + ".docx"
-	job0text = "job0_" + pyFile + ".txt"
+	# Verify if DIRECTORY_LOGS exists.
+	if not os.path.exists(dictParam['logInfo']):
+		os.makedirs(dictParam['logInfo'])
 
-	if genMop == 'yes':
+	job0docx = dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".docx"
+	job0text = dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".txt"
+
+	if dictParam['genMop'] == 'yes':
 
 		print("\nGenerating MOP: " + job0docx)
 		config = aluCliLineJob0.split('\n')
@@ -556,7 +564,7 @@ def renderMop(aluCliLineJob0, pyFile, genMop):
 		#styleConsole.paragraph_format.line_spacing = .2
 		styleConsole.paragraph_format.space_after = Pt(2)
 
-		myDoc.add_heading('MOP for ' + pyFile, 0)
+		myDoc.add_heading('MOP for ' + dictParam['pyFile'], 0)
 
 		for i,row in enumerate(config):
 
@@ -606,8 +614,11 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 
 	if dictParam['outputJob'] == 2:
 		mop = None
-	else:
-		mop = 1
+	elif dictParam['outputJob'] == 0:
+		if i == -1:
+			mop = None
+		else:
+			mop = 1
 
 	if dictParam['strictOrder'] == 'no':
 
@@ -1358,7 +1369,7 @@ def fncRun(dictParam):
 
 		# logInfo
 		dictParam['LOG_TIME']         = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-		dictParam['DIRECTORY_LOGS']   = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_" + dictParam['pyFile'] + "/"
+		dictParam['DIRECTORY_LOGS']   = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_" + dictParam['pyFileAlone'] + "/"
 		dictParam['ALU_FILE_OUT_CSV'] = dictParam['DIRECTORY_LOGS'] + "00_log.csv"
 
 		# Verify if DIRECTORY_LOGS exists. If so, ask for different name ...
@@ -1368,7 +1379,6 @@ def fncRun(dictParam):
 		else:
 			os.makedirs(dictParam['DIRECTORY_LOGS'])
 			open(dictParam['ALU_FILE_OUT_CSV'],'w').close()
-			#os.mknod(ALU_FILE_OUT_CSV)
 
 		###############
 		# Let's run ....
@@ -1398,7 +1408,17 @@ def fncRun(dictParam):
 
 		aluCliLineJob0 = ""
 
+		# Verify if DIRECTORY_LOGS exists.
+		if not os.path.exists(dictParam['logInfo']):
+			os.makedirs(dictParam['logInfo'])		
+
 		for i, IPconnect in enumerate(routers):
+
+			tempFname = dictParam['logInfo'] + '/' + 'job0_' + IPconnect + '.cfg'
+			tempCfg   = renderCliLine(IPconnect, dictParam, mod, data, i=-1)
+
+			with open(tempFname,'w') as f:
+				f.write(tempCfg)
 
 			aluCliLineJob0 = aluCliLineJob0 + renderCliLine(IPconnect, dictParam, mod, data, i)
 
@@ -1408,7 +1428,7 @@ def fncRun(dictParam):
 			print("\nWrong config file for router " + str(IPconnect) + "\nCheck (n,line,char): " + str(verif) + "\nQuitting...")
 			quit()			
 
-		renderMop(aluCliLineJob0, dictParam['pyFile'], dictParam['genMop'])
+		renderMop(aluCliLineJob0, dictParam)
 		fncPrintResults(routers, timeTotalStart, dictParam)
 
 	return 0
@@ -1416,11 +1436,12 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.0' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.2' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
 	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File')
+	parser1.add_argument('-log','--logInfo' ,      type=str, required=True, help='Description for log folder. Logs, MOP and scripts will be stored here.', )
 
 	parser1.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
 	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
@@ -1428,12 +1449,11 @@ if __name__ == '__main__':
 
 	parser1.add_argument('-u'  ,'--username',      type=str, help='Username to connect to router.', )
 	parser1.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
-	parser1.add_argument('-log','--logInfo' ,      type=str, help='Description for log folder', )
 
 	parser1.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
 	parser1.add_argument('-inv','--inventoryFile', type=str, help='inventory.csv file with per router connection parameters. Default=None', default=None)
 	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin.', choices=['show','config'])
-	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])	
+	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
 	parser1.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
@@ -1471,6 +1491,8 @@ if __name__ == '__main__':
 		dataGroupColumn     = args.dataGroupColumn,
 		readTimeOut         = args.readTimeOut,
 	)
+
+	dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
 
 	### Rady to go ...
 
