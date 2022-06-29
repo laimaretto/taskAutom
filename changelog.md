@@ -13,6 +13,7 @@
     - the `expect_string` was changed to `r'#'`.
     - the start and end scripts are now `"echo SCRIPT_NONO_START\n"` and `"echo SCRIPT_NONO_FIN\n"`.
 - The output in json format now includes a new key, with the IP of the router.
+- Data file and Plugin can now reside on a different folder other than the root of taskAutom.
 
 ## [7.13.1] - 2022-03-17
 

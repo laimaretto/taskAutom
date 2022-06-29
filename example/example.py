@@ -1,10 +1,10 @@
 def construir_cliLine(m, datos, lenData, mop=None):
 
-    system  = datos[0]
-    rtrName = datos[1]
-    intName = datos[2]
-    port    = datos[3]
-    ipAddr  = datos[4]
+    system  = datos.ip
+    rtrName = datos.name
+    intName = datos.intName
+    port    = datos.port
+    ipAddr  = datos.intAddr
 
     title    = ""
     cfg      = "" 

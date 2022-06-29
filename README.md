@@ -63,9 +63,10 @@ If you want `taskAutom` not to group routers by the `[ip|_1]` column, you should
 
 The next columns in the DATA file, are the variables that will be used in the configuration template.
 
-**Example:** this is a CSV for two different routers, including the data to modify their interfaces. No header is being used.
+**Example:** this is a CSV for two different routers, including the data to modify their interfaces. A header is being used in this case.
 
 ```csv
+ip,name,port,interName,ipAddress
 10.0.0.1,router1,1/1/1,inter1,192.168.0.1/30
 10.0.0.2,router2,1/3/5,inter7,192.168.2.1/30
 ```
@@ -85,11 +86,11 @@ The plugin is a Python code which is fed with each row of the DATA file at a tim
 ```python
 def construir_cliLine(m, datos, lenData, mop=None):
 
-	ipSystem   = datos._1
-	router     = datos._2
-	port       = datos._3
-	intName    = datos._4
-	address    = datos._5
+	ipSystem   = datos.ip
+	router     = datos.name
+	port       = datos.port
+	intName    = datos.interName
+	address    = datos.ipAddress
 
 	cfg        = ""
 
