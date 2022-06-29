@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2020 Lucas Aimaretto / laimaretto@gmail.com
+# Copyright (C) 2015-2022 Lucas Aimaretto / laimaretto@gmail.com
 #
 # This is taskAutom
 #
@@ -9,9 +9,9 @@
 # but WITHOUT ANY WARRANTY of any kind whatsoever.
 #
 
-from tkinter.tix import FileSelectBox
+from distutils import cmd
 import paramiko
-from sshtunnel import SSHTunnelForwarder
+import sshtunnel
 from netmiko import ConnectHandler
 from scp import SCPClient
 import pandas as pd
@@ -71,19 +71,20 @@ ALU_HOSTNAME              = [b"(A:|B:)(.+)(>|#)"]
 CH_CR					  = "\n"
 CH_COMA 				  = ","
 LOG_GLOBAL                = []
+LOG_CONSOLE               = []
 
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
-		START_SCRIPT     = "# SCRIPT_NONO_START", # no \n in the end
-		FIRST_LINE       = "\n/environment no more\n",
+		START_SCRIPT     = "echo SCRIPT_NONO_START\n", 
+		FIRST_LINE       = "/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "# SCRIPT_NONO_FIN", # no \n in the end
+		FIN_SCRIPT       = "echo SCRIPT_NONO_FIN\n",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
-		SEND_CMD_REGEX   = "#",
+		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
@@ -91,15 +92,15 @@ DICT_VENDOR = dict(
 		SFTP_PORT        = 22,
 	),
 	nokia_sros_telnet=dict(
-		START_SCRIPT     = "# SCRIPT_NONO_START", # no \n in the end
+		START_SCRIPT     = "echo SCRIPT_NONO_START\n", 
 		FIRST_LINE       = "\n/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "# SCRIPT_NONO_FIN", # no \n in the end
+		FIN_SCRIPT       = "echo SCRIPT_NONO_FIN\n",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
-		SEND_CMD_REGEX   = "#",
+		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
 		INFO_ERROR_LIST  = ["^INFO:.+"],
@@ -127,10 +128,11 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + "  Template Type:              " + dictParam['pluginType'] + '\n'
 	outTxt = outTxt + "  DATA File:                  " + dictParam['data'] + '\n'
 	outTxt = outTxt + "  DATA UseHeader:             " + dictParam['useHeader'] + '\n'
-	outTxt = outTxt + "  Text File:                  " + "job0_" + dictParam['pyFile'] + ".txt" + '\n'
+	outTxt = outTxt + "  Folder logInfo:             " + dictParam['logInfo'] + '\n'
+	outTxt = outTxt + "  Text File:                  " + dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".txt" + '\n'
 
 	if dictParam['genMop'] == 'yes':
-		outTxt = outTxt + "  MOP filename                " + "job0_" + dictParam['pyFile'] + ".docx\n"
+		outTxt = outTxt + "  MOP filename                " + dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".docx\n"
 
 	if bool(dictParam['inventoryFile']):
 		outTxt = outTxt + "  Inventory file              " + str(dictParam['inventoryFile']) + "\n"
@@ -141,11 +143,6 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 	if dictParam['strictOrder'] == 'yes':
 		outTxt = outTxt + "  Halt-on-Error:              " + dictParam['haltOnError'] + '\n'
-
-	if dictParam['logInfo']:
-		outTxt = outTxt + "  Folder logInfo:             " + dictParam['logInfo'] + '\n'
-	else:
-		outTxt = outTxt + "  Folder logInfo:             " + "None" + '\n'
 
 	if bool(dictParam['cronTime']):
 		outTxt = outTxt + "  CRON Config:                " + str(dictParam['cronTime']) + '\n'
@@ -169,8 +166,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	else:
 		outTxt = outTxt + "  Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) + '\n'
 	
-	outTxt = outTxt + "  Delay Factor:               " + str(dictParam['delayFactor']) + '\n'
-	outTxt = outTxt + "  MaxLoops:                   " + str(dictParam['maxLoops']) + '\n'
+	outTxt = outTxt + "  Read Timeout:               " + str(dictParam['readTimeOut']) + '\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
 	outTxt = outTxt + "  Device Type:                " + str(dictParam['deviceType']) + '\n'
 
@@ -182,17 +178,16 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + separator + '\n'
 
 		routers = LOG_GLOBAL
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','delayFactor','maxLoops','servers']
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers']
 		df = pd.DataFrame(routers,columns=columns)
 
 		outTxt = outTxt + "\nTiming:\n"
 
-
-		outTxt = outTxt + "  timeMin                     " + fncFormatTime(df['time'].min()) + "s" + '\n'
-		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(df['time'].mean()) + "s" + '\n'
-		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(df['time'].max()) + "s" + '\n'
-		outTxt = outTxt + "  timeTotal:                  " + fncFormatTime(timeTotal) + "s" + '\n'
-		outTxt = outTxt + "  timeTotal/totalRouters:     " + fncFormatTime(timeTotal/len(routers)) + "s" + '\n'
+		outTxt = outTxt + "  timeMin                     " + fncFormatTime(df['time'].min()) + '\n'
+		outTxt = outTxt + "  timeAvg:                    " + fncFormatTime(df['time'].mean()) + '\n'
+		outTxt = outTxt + "  timeMax:                    " + fncFormatTime(df['time'].max()) + '\n'
+		outTxt = outTxt + "  timeTotal:                  " + fncFormatTime(timeTotal) + '\n'
+		outTxt = outTxt + "  timeTotal/totalRouters:     " + fncFormatTime(timeTotal/len(routers)) + '\n'
 
 		outTxt = outTxt + separator + '\n'
 
@@ -224,21 +219,42 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		with open(DIRECTORY_LOG_INFO + '00_report.txt','w') as f:
 			f.write(outTxt)
 
+		with open(DIRECTORY_LOG_INFO + '00_log_console.txt','w') as f:
+			for k in LOG_CONSOLE:
+				f.write(k+'\n')		
+
 	outTxt = outTxt + separator + '\n'
 
 	print(outTxt)
 
-def fncFormatTime(timeFloat):
+def fncFormatTime(timeFloat, adjust=True):
 
 	move = 100
 
-	return str( float(int(timeFloat*move))/move )
+	if adjust==True:
+
+		unit = 's'
+
+		if timeFloat > 120:
+			timeFloat = timeFloat / 60
+			unit = 'm'
+
+		timeFloat = float(int(timeFloat*move))/move	
+
+		return str( timeFloat ) + unit
+
+	else:
+
+		return float(int(timeFloat*move))/move
+
 
 def fncPrintConsole(inText, show=1):
 	#logging.debug(inText)
 	localtime   = time.localtime()
 	if show:
-		print(str(time.strftime("%H:%M:%S", localtime)) + "| " + inText)
+		output = str(time.strftime("%H:%M:%S", localtime)) + "| " + inText
+		print(output)
+		LOG_CONSOLE.append(output)
 
 def run_mi_thread(i, CliLine, ip, dictParam):
 	"""[summary]
@@ -424,6 +440,8 @@ def verifyPlugin(pyFile):
 		if pyFile.split(".")[-1] == "py":
 			pyFile = pyFile.split(".")[0]
 			#exec ("from " + pyFile + " import construir_cliLine")
+			if '/' in pyFile:
+				pyFile = pyFile.replace('/','.')
 			mod = importlib.import_module(pyFile)
 			print(mod)
 		else:
@@ -452,7 +470,7 @@ def verifyConfigFile(config_file):
 
 def verifyInventory(inventoryFile, jumpHostsFile):
 
-	columns = ['ip','username','password','deviceType','useSSHTunnel','delayFactor','maxLoops','jumpHost']
+	columns = ['ip','username','password','deviceType','useSSHTunnel','readTimeOut','jumpHost']
 
 	try:
 		df = pd.read_csv(inventoryFile)
@@ -479,8 +497,7 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 		jh   = row.jumpHost
 		dt   = row.deviceType
 		tun  = row.useSSHTunnel
-		dfac = row.delayFactor
-		sml  = row.maxLoops
+		rto  = row.readTimeOut
 
 		if tun not in ['yes','no','']:
 			print("Inventory: The router " + ip + " is not using a valid sshTunnel option. For default, leave empty. Quitting...")
@@ -498,18 +515,11 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 			print("Inventory: The router " + ip + " is not using a valid deviceType. For default, leave empty. Quitting...")
 			quit()
 
-		if dfac != '':
+		if rto != '':
 			try:
-				float(dfac)
+				int(rto)
 			except:
-				print("Inventory: The router " + ip + " has not a valid delayFactor. For default, leave empty. Quitting...")
-				quit()
-
-		if sml != '':
-			try:
-				float(sml)
-			except:
-				print("Inventory: The router " + ip + " has not a valid maxLoops. For default, leave empty. Quitting...")
+				print("Inventory: The router " + ip + " has not a valid ReadTimeOut. For default, leave empty. Quitting...")
 				quit()				
 
 
@@ -517,7 +527,7 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 
 	return df3
 
-def renderMop(aluCliLineJob0, pyFile, genMop):
+def renderMop(aluCliLineJob0, dictParam):
 	"""[Generates a MOP based on the CSV and plugin information]
 
 	Args:
@@ -528,10 +538,14 @@ def renderMop(aluCliLineJob0, pyFile, genMop):
 		None
 	"""
 
-	job0docx = "job0_" + pyFile + ".docx"
-	job0text = "job0_" + pyFile + ".txt"
+	# Verify if DIRECTORY_LOGS exists.
+	if not os.path.exists(dictParam['logInfo']):
+		os.makedirs(dictParam['logInfo'])
 
-	if genMop == 'yes':
+	job0docx = dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".docx"
+	job0text = dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".txt"
+
+	if dictParam['genMop'] == 'yes':
 
 		print("\nGenerating MOP: " + job0docx)
 		config = aluCliLineJob0.split('\n')
@@ -550,7 +564,7 @@ def renderMop(aluCliLineJob0, pyFile, genMop):
 		#styleConsole.paragraph_format.line_spacing = .2
 		styleConsole.paragraph_format.space_after = Pt(2)
 
-		myDoc.add_heading('MOP for ' + pyFile, 0)
+		myDoc.add_heading('MOP for ' + dictParam['pyFile'], 0)
 
 		for i,row in enumerate(config):
 
@@ -600,8 +614,11 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 
 	if dictParam['outputJob'] == 2:
 		mop = None
-	else:
-		mop = 1
+	elif dictParam['outputJob'] == 0:
+		if i == -1:
+			mop = None
+		else:
+			mop = 1
 
 	if dictParam['strictOrder'] == 'no':
 
@@ -674,7 +691,6 @@ class myConnection(threading.Thread):
 		self.outputJob 	      = dictParam['outputJob']
 		self.DIRECTORY_LOGS   = dictParam['DIRECTORY_LOGS']
 		self.ALU_FILE_OUT_CSV = dictParam['ALU_FILE_OUT_CSV']
-		self.delayFactor      = dictParam['delayFactor']
 		self.logInfo          = dictParam['logInfo']
 		self.LOG_TIME         = dictParam['LOG_TIME']
 		self.plugin           = dictParam['pyFile']
@@ -695,14 +711,13 @@ class myConnection(threading.Thread):
 			'cronTime':dictParam['cronTime'],
 			'sshServer':-1,
 			'conn2rtr':-1,
-			'delayFactor':dictParam['delayFactor'],
-			'maxLoops':dictParam['maxLoops'],
 			'jumpHosts':dictParam['jumpHosts'],
 			'inventory':dictParam['inventory'],
 			'strictOrder':dictParam['strictOrder'],
 			'deviceType':dictParam['deviceType'],
 			'pluginType':dictParam['pluginType'],
 			'cmdVerify':dictParam['cmdVerify'],
+			'readTimeOut':dictParam['readTimeOut'],
 		}
 
 		# Do we you use jumpHosts?
@@ -738,6 +753,7 @@ class myConnection(threading.Thread):
 		self.strConn    = "Con-" + str(self.num) + "| "
 		self.outRx 	    = ''
 		self.fRx        = ''
+		self.outRxJson  = {}
 		self.runStatus  = 1
 		self.useCron    = len(self.connInfo['cronTime'])
 		
@@ -818,12 +834,11 @@ class myConnection(threading.Thread):
 
 		conn2rtr           = connInfo['conn2rtr']
 		pluginType         = connInfo['pluginType']
-		maxLoops           = connInfo['maxLoops']
-		delayFactor        = connInfo['delayFactor']
+		readTimeOut        = connInfo['readTimeOut']
 
 		expectString       = DICT_VENDOR[connInfo['deviceType']]['SEND_CMD_REGEX']
 
-		output = ''
+		outputTxt  = ''
 		outputJson = {}		
 
 		if connInfo['cmdVerify'] == 'yes':
@@ -838,11 +853,11 @@ class myConnection(threading.Thread):
 			if pluginType == 'config':
 
 				try:
-					output       = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+					outputTxt    = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, read_timeout=readTimeOut)
 					aluLogReason = ""
 					runStatus    = 1
 				except Exception as e:
-					output 	 	 = ''
+					outputTxt	 = ''
 					aluLogReason = str(e)
 					runStatus    = -1						
 
@@ -850,28 +865,28 @@ class myConnection(threading.Thread):
 				
 				try:
 					for cmd in inText:
-						rx     = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
-						output = output + '\n' + cmd + '\n' + rx
+						rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						outputTxt = outputTxt + '\n' + cmd + '\n' + rx
 						outputJson[cmd] = rx
 					aluLogReason = ""
 					runStatus    = 1
 				except Exception as e:
-					output       = ''
+					outputTxt    = ''
 					aluLogReason = str(e)
 					runStatus    = -1
 
 		elif type(inText) == type(''):
 			
 			try:
-				output       = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, delay_factor=delayFactor, max_loops=maxLoops)
+				outputTxt    = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
 				aluLogReason = ""
 				runStatus    = 1					
 			except Exception as e:
-				output       = ''
+				outputTxt    = ''
 				aluLogReason = str(e)
 				runStatus    = -1
 
-		return runStatus, aluLogReason, output, outputJson
+		return runStatus, aluLogReason, outputTxt, outputJson
 
 	def fncAuxGetVal(self, connInfo, what):
 
@@ -929,8 +944,6 @@ class myConnection(threading.Thread):
 			connInfo['controlPlaneAccess'] 	= tunnel[0]
 			connInfo['localPort'] 		   	= tunnel[1]
 			connInfo['sshServer']    		= tunnel[2]
-
-			fncPrintConsole(self.strConn + "Trying router " + IP_LOCALHOST + ":" + str(connInfo['localPort']) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
 
 		else:
 
@@ -1043,26 +1056,31 @@ class myConnection(threading.Thread):
 		if sftp:
 			remotePort = connInfo['sftpPort']
 		else:
-			remotePort = connInfo['remotePort']	
+			remotePort = connInfo['remotePort']
 
-		try:
-			server = SSHTunnelForwarder( 	(tempIp, tempPort), 
-												ssh_username = tempUser, 
-												ssh_password = tempPass, 
-												remote_bind_address = (connInfo['systemIP'], remotePort),
-												allow_agent = False,
-											)
-			server.start()
-			localPort = server.local_bind_port
-			controlPlaneAccess = 1
-			fncPrintConsole(self.strConn + "sshServerTunnel on port: " + str(localPort))
+		systemIP = connInfo['systemIP']
 
-		except Exception as e:
+		server = sshtunnel.SSHTunnelForwarder( 	(tempIp, tempPort), 
+											ssh_username = tempUser, 
+											ssh_password = tempPass, 
+											remote_bind_address = (systemIP, remotePort),
+											allow_agent = False,
+										)
+		server.start()
+		localPort = server.local_bind_port
+		controlPlaneAccess = 1
 
-			fncPrintConsole(strConn, e)
+		fncPrintConsole(self.strConn + "Trying sshServerTunnel on port: " + str(localPort))
+		fncPrintConsole(self.strConn + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
+
+		server.check_tunnels()
+
+		if server.tunnel_is_up[('0.0.0.0',localPort)] == False:
 			fncPrintConsole(strConn + "Error SSH Tunnel")
+			server.stop()
 			controlPlaneAccess = -1
 			localPort 		   = -1
+			server             = -1
 
 		return controlPlaneAccess, localPort, server
 
@@ -1073,7 +1091,7 @@ class myConnection(threading.Thread):
 		index      = 0
 
 		systemIP   = connInfo['systemIP']
-		deviceType = connInfo['deviceType']
+		deviceType = connInfo['deviceType']	
 
 		if connInfo['useSSHTunnel'] == 'yes':
 			ip   = IP_LOCALHOST
@@ -1089,7 +1107,7 @@ class myConnection(threading.Thread):
 			index 	 = index + 1
 
 			try:
-				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli = False)
+				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False)
 				aluLogged    = 1
 				aluLogReason = "LoggedOk"
 				aluLogUser   = tempUser
@@ -1109,7 +1127,7 @@ class myConnection(threading.Thread):
 		# Sending script to ALU
 		tStart 		 = time.time()
 
-		fin_script       = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
+		fin_script       = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT'].replace("echo ","").replace("\n","")
 		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
 		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
 		info_error_list  = DICT_VENDOR[connInfo['deviceType']]['INFO_ERROR_LIST']
@@ -1161,6 +1179,7 @@ class myConnection(threading.Thread):
 
 		if connInfo['aluLogged'] == 1 and outRxJson != {}:
 			outRxJson['name'] = connInfo['hostname']
+			outRxJson['ip']   = connInfo['systemIP']
 			with open(aluFileOutRxJson,'w') as fj:
 				json.dump(outRxJson,fj)
 
@@ -1188,9 +1207,8 @@ class myConnection(threading.Thread):
 			connInfo['deviceType'],
 			str(len(datos.split('\n'))),
 			str(len(outRx.split('\n'))),
-			float(fncFormatTime(tDiff)),
-			str(connInfo['delayFactor']),
-			str(connInfo['maxLoops']),
+			float(fncFormatTime(tDiff, adjust=False)),
+			str(connInfo['readTimeOut']),
 			str(lenServers),
 			]
 
@@ -1351,7 +1369,7 @@ def fncRun(dictParam):
 
 		# logInfo
 		dictParam['LOG_TIME']         = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-		dictParam['DIRECTORY_LOGS']   = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_" + dictParam['pyFile'] + "/"
+		dictParam['DIRECTORY_LOGS']   = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_" + dictParam['pyFileAlone'] + "/"
 		dictParam['ALU_FILE_OUT_CSV'] = dictParam['DIRECTORY_LOGS'] + "00_log.csv"
 
 		# Verify if DIRECTORY_LOGS exists. If so, ask for different name ...
@@ -1361,7 +1379,6 @@ def fncRun(dictParam):
 		else:
 			os.makedirs(dictParam['DIRECTORY_LOGS'])
 			open(dictParam['ALU_FILE_OUT_CSV'],'w').close()
-			#os.mknod(ALU_FILE_OUT_CSV)
 
 		###############
 		# Let's run ....
@@ -1391,7 +1408,17 @@ def fncRun(dictParam):
 
 		aluCliLineJob0 = ""
 
+		# Verify if DIRECTORY_LOGS exists.
+		if not os.path.exists(dictParam['logInfo']):
+			os.makedirs(dictParam['logInfo'])		
+
 		for i, IPconnect in enumerate(routers):
+
+			tempFname = dictParam['logInfo'] + '/' + 'job0_' + IPconnect + '.cfg'
+			tempCfg   = renderCliLine(IPconnect, dictParam, mod, data, i=-1)
+
+			with open(tempFname,'w') as f:
+				f.write(tempCfg)
 
 			aluCliLineJob0 = aluCliLineJob0 + renderCliLine(IPconnect, dictParam, mod, data, i)
 
@@ -1401,7 +1428,7 @@ def fncRun(dictParam):
 			print("\nWrong config file for router " + str(IPconnect) + "\nCheck (n,line,char): " + str(verif) + "\nQuitting...")
 			quit()			
 
-		renderMop(aluCliLineJob0, dictParam['pyFile'], dictParam['genMop'])
+		renderMop(aluCliLineJob0, dictParam)
 		fncPrintResults(routers, timeTotalStart, dictParam)
 
 	return 0
@@ -1409,11 +1436,12 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2021 - laimaretto@gmail.com - Version: 7.13.1' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.2' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
 	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File')
+	parser1.add_argument('-log','--logInfo' ,      type=str, required=True, help='Description for log folder. Logs, MOP and scripts will be stored here.', )
 
 	parser1.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
 	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
@@ -1421,15 +1449,13 @@ if __name__ == '__main__':
 
 	parser1.add_argument('-u'  ,'--username',      type=str, help='Username to connect to router.', )
 	parser1.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
-	parser1.add_argument('-log','--logInfo' ,      type=str, help='Description for log folder', )
 
 	parser1.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
 	parser1.add_argument('-inv','--inventoryFile', type=str, help='inventory.csv file with per router connection parameters. Default=None', default=None)
 	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin.', choices=['show','config'])
-	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])	
+	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
-	parser1.add_argument('-df' ,'--delayFactor',   type=float, help='SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1', default=1,)
-	parser1.add_argument('-sml' ,'--maxLoops',    type=float, help='SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000', default=5000)
+	parser1.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
 	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
 	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
@@ -1453,8 +1479,6 @@ if __name__ == '__main__':
 		logInfo 			= args.logInfo,
 		useSSHTunnel 		= args.sshTunnel,
 		cronTime            = args.cronTime,
-		delayFactor         = args.delayFactor,
-		maxLoops            = args.maxLoops,
 		jumpHostsFile       = args.jumpHostsFile,
 		genMop              = args.genMop,
 		strictOrder         = args.strictOrder,
@@ -1465,7 +1489,10 @@ if __name__ == '__main__':
 		cmdVerify           = args.cmdVerify,
 		sshDebug            = args.sshDebug,
 		dataGroupColumn     = args.dataGroupColumn,
+		readTimeOut         = args.readTimeOut,
 	)
+
+	dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
 
 	### Rady to go ...
 
