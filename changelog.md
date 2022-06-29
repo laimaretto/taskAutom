@@ -1,5 +1,21 @@
 # Versions #
 
+## [7.14.0] - 2022-06-25
+
+- Upgrade of `netmiko` library to version 4.1.0
+    - `delayFactor` and `maxLoops` are no longer used;
+    - New parameter `readTimeOut` is used insted. In seconds, sets the amount of time `taskAutom` waits for output from router. Default to 10 seconds.
+    - This change also affects the building of the inventory file, if used.
+- Upgrade of `paramiko` library to version 2.11.0
+- Upgrade of `pandas` library to version 1.4.1
+- Better detection of ssh-tunnels under the function `fncSshServer()`.
+- Final report shows times in minutes if greater than 120s.
+- In the definition of the dictionary `DICT_VENDOR`
+    - the `expect_string` was changed to `r'#\s$'`.
+    - the start and end scripts are now `"echo SCRIPT_NONO_START\n"` and `"echo SCRIPT_NONO_FIN\n"`.
+- The output in json format now includes a new key, with the IP of the router.
+- Data file and Plugin can now reside on a different folder other than the root of taskAutom.
+
 ## [7.13.1] - 2022-03-17
 
 - When using option `-pt show` a `json` file is created where output is stored. Each `show` command is used as a key inside the json file. This will help for output checking.

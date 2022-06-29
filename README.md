@@ -59,13 +59,14 @@ The DATA can be either a CSV file or an Excel file. In both cases you can define
 
 The first column `_1` or the `ip` column (or eventually changed by `-gc`) allows `taskAutom` to group routers by that column when processing data. This is particularly useful if you have the same router along several rows in the DATA file.
 
-If you want `taskAutom` not to group routers by the `[ip|_1]` column, you should use the `-so/--strictOrder yes` CLI parameter: this will process the routers' data in the order that it is inside the DATA file.
+If you want `taskAutom` not to group routers by the `[ip|_1]` column, you should use the `-so/--strictOrder yes` CLI parameter: this will process the routers' data in the order of the DATA file as is.
 
 The next columns in the DATA file, are the variables that will be used in the configuration template.
 
-**Example:** this is a CSV for two different routers, including the data to modify their interfaces. No header is being used.
+**Example:** this is a CSV for two different routers, including the data to modify their interfaces. A header is being used in this case.
 
 ```csv
+ip,name,port,interName,ipAddress
 10.0.0.1,router1,1/1/1,inter1,192.168.0.1/30
 10.0.0.2,router2,1/3/5,inter7,192.168.2.1/30
 ```
@@ -85,22 +86,22 @@ The plugin is a Python code which is fed with each row of the DATA file at a tim
 ```python
 def construir_cliLine(m, datos, lenData, mop=None):
 
-	ipSystem   = datos._1
-	router     = datos._2
-	port       = datos._3
-	intName    = datos._4
-	address    = datos._5
+	ipSystem   = datos.ip
+	router     = datos.name
+	port       = datos.port
+	intName    = datos.interName
+	address    = datos.ipAddress
 
 	cfg        = ""
 
-	if mop and m == 0:
-		cfg = "\nHeading_2:Router: " + router + ", " + ipSystem + "\n"
+    if mop and m == 0:
+        cfg = "\nHeading_2:Router: " + router + ", " + ipSystem + "\n"
 
-	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
-	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
+    cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
+    cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
 
     if m == lenData-1:
-        cfg = cfg + "/configure router interface " + intName + " no shutdown\n"
+        cfg = cfg + "/configure router interface " + intName + " no shutdown\n" 
 
 	return cfg
 ```
@@ -117,12 +118,12 @@ def construir_cliLine(m, datos, lenData, mop=None):
 
 By default, `taskAutom` connects to each and every router that exists inside the DATA data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
-ip|username|password|useSSHTunnel|telnetTimeout|delayFactor|deviceType|jumpHost|maxLoops
---|--------|--------|------------|-------------|-----------|----------|--------|---------
-10.0.0.1|user1|pass1|yes||0.5|nokia_sros|server1|1000
-10.0.0.2|user2|pass2|no|90||nokia_sros_telnet|
+ip|username|password|useSSHTunnel|readTimeOut|deviceType|jumpHost|
+--|--------|--------|------------|----------|--------|---------
+10.0.0.1|user1|pass1|yes|15|nokia_sros|server1|1000
+10.0.0.2|user2|pass2|no|90|nokia_sros_telnet|
 
-If fieds in the CSV are left empty, those are replaced by default values.
+If fieds in the inventory CSV file are left empty, default values are used.
 
 ### MOP
 
@@ -135,7 +136,7 @@ When writing a plugin, is important to help `taskAutom` understand which string 
 If `taskAutom` is invoked with option `-j/--jobType 0`, a text file with the rendered output, will be genereated.
 
 ```bash
-$ taskAutom -d listExample.csv -py confExample.py -j 0
+$ taskAutom -d example/example.csv -py example/example.py -l test -j 0
 
 Router: router1, 10.0.0.1
 /configure router interface inter1 port 1/1/1
@@ -190,10 +191,8 @@ optional arguments:
                         Generate MOP. Default=no
   -crt CRONTIME [CRONTIME ...], --cronTime CRONTIME [CRONTIME ...]
                         Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).
-  -df DELAYFACTOR, --delayFactor DELAYFACTOR
-                        SSH delay factor. Increase if the network is lossy and/on noissy. Improves interaction with the network. Default=1
-  -sml MAXLOOPS, --maxLoops MAXLOOPS
-                        SSH MaxLoops. Increase if long outputs are to be expected per each command (mainly for show commands). Default=5000
+  -rto READTIMEOUT, --readTimeOut READTIMEOUT
+                        Read Timeout. Time in seconds which to wait for data from router. Default=10
   -tun {no,yes}, --sshTunnel {no,yes}
                         Use SSH Tunnel to routers. Default=yes
   -dt {nokia_sros,nokia_sros_telnet}, --deviceType {nokia_sros,nokia_sros_telnet}
@@ -206,4 +205,5 @@ optional arguments:
                         Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes
   -sd {no,yes}, --sshDebug {no,yes}
                         Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no
+
 ```
