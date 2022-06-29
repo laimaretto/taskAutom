@@ -59,7 +59,7 @@ The DATA can be either a CSV file or an Excel file. In both cases you can define
 
 The first column `_1` or the `ip` column (or eventually changed by `-gc`) allows `taskAutom` to group routers by that column when processing data. This is particularly useful if you have the same router along several rows in the DATA file.
 
-If you want `taskAutom` not to group routers by the `[ip|_1]` column, you should use the `-so/--strictOrder yes` CLI parameter: this will process the routers' data in the order that it is inside the DATA file.
+If you want `taskAutom` not to group routers by the `[ip|_1]` column, you should use the `-so/--strictOrder yes` CLI parameter: this will process the routers' data in the order of the DATA file as is.
 
 The next columns in the DATA file, are the variables that will be used in the configuration template.
 
@@ -94,14 +94,14 @@ def construir_cliLine(m, datos, lenData, mop=None):
 
 	cfg        = ""
 
-	if mop and m == 0:
-		cfg = "\nHeading_2:Router: " + router + ", " + ipSystem + "\n"
+    if mop and m == 0:
+        cfg = "\nHeading_2:Router: " + router + ", " + ipSystem + "\n"
 
-	cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
-	cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
+    cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
+    cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
 
     if m == lenData-1:
-        cfg = cfg + "/configure router interface " + intName + " no shutdown\n"
+        cfg = cfg + "/configure router interface " + intName + " no shutdown\n" 
 
 	return cfg
 ```
