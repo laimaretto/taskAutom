@@ -136,7 +136,7 @@ When writing a plugin, is important to help `taskAutom` understand which string 
 If `taskAutom` is invoked with option `-j/--jobType 0`, a text file with the rendered output, will be genereated.
 
 ```bash
-$ taskAutom -d listExample.csv -py confExample.py -j 0
+$ taskAutom -d example/example.csv -py example/example.py -l test -j 0
 
 Router: router1, 10.0.0.1
 /configure router interface inter1 port 1/1/1
