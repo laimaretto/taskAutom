@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.14.3] - 2022-07-05
+
+- Change of `START_SCRIPT` and `END_SCRIPT` defined in `DICT_VENDOR` for `nokia_sros` and `nokia_sros_telnet`.
+
 ## [7.14.0] - 2022-06-25
 
 - Upgrade of `netmiko` library to version 4.1.0

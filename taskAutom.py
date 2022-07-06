@@ -76,10 +76,10 @@ LOG_CONSOLE               = []
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
-		START_SCRIPT     = "echo SCRIPT_NONO_START\n", 
+		START_SCRIPT     = "#SCRIPT_NONO_START\n", 
 		FIRST_LINE       = "/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "echo SCRIPT_NONO_FIN\n",
+		FIN_SCRIPT       = "#SCRIPT_NONO_FIN\n",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
@@ -92,10 +92,10 @@ DICT_VENDOR = dict(
 		SFTP_PORT        = 22,
 	),
 	nokia_sros_telnet=dict(
-		START_SCRIPT     = "echo SCRIPT_NONO_START\n", 
+		START_SCRIPT     = "#SCRIPT_NONO_START\n", 
 		FIRST_LINE       = "\n/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "echo SCRIPT_NONO_FIN\n",
+		FIN_SCRIPT       = "#SCRIPT_NONO_FIN\n",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
@@ -1436,7 +1436,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.2' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.3' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
@@ -1494,7 +1494,7 @@ if __name__ == '__main__':
 
 	dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
 
-	### Rady to go ...
+	### Ready to go ...
 
 	if dictParam['outputJob'] == 0:
 
