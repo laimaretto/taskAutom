@@ -1,5 +1,13 @@
 # Versions #
 
+## [7.14.4] - 2022-08-11
+
+- Change of `START_SCRIPT` and `END_SCRIPT` defined in `DICT_VENDOR` for `nokia_sros` and `nokia_sros_telnet`.
+- In function `routerRunRoutine()` no more looking for string `END_SCRIPT`.
+- New parameter `timeBetweenRouters`. A delay in seconds to wait before executing scripts on a router. Works both for threaded connections or with strict order.
+- In function `fncSshServer()` better handling of connection errors with sshtunnel.
+
+
 ## [7.14.3] - 2022-07-05
 
 - Change of `START_SCRIPT` and `END_SCRIPT` defined in `DICT_VENDOR` for `nokia_sros` and `nokia_sros_telnet`.

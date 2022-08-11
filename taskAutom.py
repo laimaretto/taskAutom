@@ -10,6 +10,7 @@
 #
 
 from distutils import cmd
+from genericpath import isfile
 import paramiko
 import sshtunnel
 from netmiko import ConnectHandler
@@ -76,10 +77,10 @@ LOG_CONSOLE               = []
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
-		START_SCRIPT     = "#SCRIPT_NONO_START\n", 
+		START_SCRIPT     = "", 
 		FIRST_LINE       = "/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "#SCRIPT_NONO_FIN\n",
+		FIN_SCRIPT       = "",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
@@ -92,10 +93,10 @@ DICT_VENDOR = dict(
 		SFTP_PORT        = 22,
 	),
 	nokia_sros_telnet=dict(
-		START_SCRIPT     = "#SCRIPT_NONO_START\n", 
+		START_SCRIPT     = "", 
 		FIRST_LINE       = "\n/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "#SCRIPT_NONO_FIN\n",
+		FIN_SCRIPT       = "",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
@@ -167,6 +168,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + "  Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) + '\n'
 	
 	outTxt = outTxt + "  Read Timeout:               " + str(dictParam['readTimeOut']) + '\n'
+	outTxt = outTxt + "  Time Between Routers:       " + str(dictParam['timeBetweenRouters']) + '\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
 	outTxt = outTxt + "  Device Type:                " + str(dictParam['deviceType']) + '\n'
 
@@ -944,6 +946,7 @@ class myConnection(threading.Thread):
 			connInfo['controlPlaneAccess'] 	= tunnel[0]
 			connInfo['localPort'] 		   	= tunnel[1]
 			connInfo['sshServer']    		= tunnel[2]
+			connInfo['aluLogReason']        = tunnel[3]
 
 		else:
 
@@ -971,9 +974,9 @@ class myConnection(threading.Thread):
 			connInfo['conn2rtr']     = -1
 			connInfo['aluLogged'] 	 = -1
 			connInfo['username']     = "N/A"
-			connInfo['aluLogReason'] = "noControlPlaneAccess"
+			#connInfo['aluLogReason'] = "noControlPlaneAccess"
 			connInfo['password']     = "N/A"
-			connInfo['sshServer']    = -1
+			#connInfo['sshServer']    = -1
 
 		return connInfo
 
@@ -1045,6 +1048,11 @@ class myConnection(threading.Thread):
 
 	def fncSshServer(self, strConn, connInfo, sftp=False):
 
+		controlPlaneAccess = -1
+		localPort 		   = -1
+		server             = -1	
+		aluLogReason       = '-1'		
+
 		jumpHost = connInfo['jumpHost']
 		servers  = connInfo['jumpHosts']
 
@@ -1060,29 +1068,33 @@ class myConnection(threading.Thread):
 
 		systemIP = connInfo['systemIP']
 
-		server = sshtunnel.SSHTunnelForwarder( 	(tempIp, tempPort), 
-											ssh_username = tempUser, 
-											ssh_password = tempPass, 
-											remote_bind_address = (systemIP, remotePort),
-											allow_agent = False,
-										)
-		server.start()
-		localPort = server.local_bind_port
-		controlPlaneAccess = 1
+		try:
+			with sshtunnel.SSHTunnelForwarder( 	(tempIp, tempPort), 
+												ssh_username = tempUser, 
+												ssh_password = tempPass, 
+												remote_bind_address = (systemIP, remotePort),
+												allow_agent = False,
+											) as server:
+				pass
+		except Exception as e:
+			aluLogReason = str(e)
+			fncPrintConsole(strConn + str(aluLogReason))
 
-		fncPrintConsole(self.strConn + "Trying sshServerTunnel on port: " + str(localPort))
-		fncPrintConsole(self.strConn + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
+		if server != -1:
+			server.start()
+			localPort = server.local_bind_port
+			controlPlaneAccess = 1
 
-		server.check_tunnels()
+			fncPrintConsole(self.strConn + "Trying sshServerTunnel on port: " + str(localPort))
+			fncPrintConsole(self.strConn + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
 
-		if server.tunnel_is_up[('0.0.0.0',localPort)] == False:
-			fncPrintConsole(strConn + "Error SSH Tunnel")
-			server.stop()
-			controlPlaneAccess = -1
-			localPort 		   = -1
-			server             = -1
+			server.check_tunnels()
 
-		return controlPlaneAccess, localPort, server
+			if server.tunnel_is_up[('0.0.0.0',localPort)] == False:
+				fncPrintConsole(strConn + "Error SSH Tunnel")
+				server.stop()
+
+		return controlPlaneAccess, localPort, server, aluLogReason
 
 	def routerLogin(self, connInfo):
 
@@ -1127,7 +1139,6 @@ class myConnection(threading.Thread):
 		# Sending script to ALU
 		tStart 		 = time.time()
 
-		fin_script       = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT'].replace("echo ","").replace("\n","")
 		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
 		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
 		info_error_list  = DICT_VENDOR[connInfo['deviceType']]['INFO_ERROR_LIST']
@@ -1146,10 +1157,7 @@ class myConnection(threading.Thread):
 		## Analizing output only if writing to connection was successfull
 		if aluLogReason == "":
 			
-			if fin_script not in outRx:
-				aluLogReason = "ReadTimeout"	
-				runStatus    = -1
-			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in major_error_list]):
+			if any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in major_error_list]):
 				aluLogReason = "MajorFailed"
 			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in minor_error_list]):				
 				aluLogReason = "MinorFailed"
@@ -1170,23 +1178,36 @@ class myConnection(threading.Thread):
 		aluFileOutRxJson = self.DIRECTORY_LOGS + connInfo['hostname'] + "_rx.json"
 
 		if connInfo['aluLogged'] == 1 and not bool(connInfo['cronTime']):
-			with open(aluFileCommands,'w') as fc:
+
+			with open(aluFileCommands,'a') as fc:
 				fc.write(datos)
 
 		if connInfo['aluLogged'] == 1:
-			with open(aluFileOutRx,'w') as fw:
+
+			with open(aluFileOutRx,'a') as fw:
 				fw.write(outRx)
 
 		if connInfo['aluLogged'] == 1 and outRxJson != {}:
-			outRxJson['name'] = connInfo['hostname']
-			outRxJson['ip']   = connInfo['systemIP']
-			with open(aluFileOutRxJson,'w') as fj:
-				json.dump(outRxJson,fj)
+
+			if not os.path.isfile(aluFileOutRxJson):
+				with open(aluFileOutRxJson,'w') as fj:
+					outRxJson['name'] = connInfo['hostname']
+					outRxJson['ip']   = connInfo['systemIP']
+					json.dump(outRxJson,fj)
+			else:
+				with open(aluFileOutRxJson) as fj:
+					data      = json.load(fj)
+				with open(aluFileOutRxJson,'w') as fj:
+					outRxJson = dict(list(outRxJson.items()) + list(data.items()))
+					json.dump(outRxJson,fj)
 
 		if connInfo['useSSHTunnel'] == 'yes':
+
 			serverName = connInfo['jumpHost']
 			lenServers = len(connInfo['jumpHosts'])
+
 		else:
+
 			serverName = '-1'
 			lenServers = '-1'
 
@@ -1386,13 +1407,18 @@ def fncRun(dictParam):
 
 			aluCliLine = renderCliLine(IPconnect, dictParam, mod, data, i)
 
+			# Wait before sending scripts to the routers ...
+			if dictParam['timeBetweenRouters'] > 0:
+				print("Waiting " + str(dictParam['timeBetweenRouters']) + "s ...")
+				time.sleep(dictParam['timeBetweenRouters'])
+
 			# running routine
 			if dictParam['strictOrder'] == 'no':
 				threads_list.apply_async(run_mi_thread, args=(i, aluCliLine, IPconnect, dictParam))
 			else:
 				aluLogReason = run_mi_thread(i, aluCliLine, IPconnect, dictParam)
 
-				if dictParam['haltOnError'] == 'yes' and aluLogReason not in ['SendSuccess','ReadTimeout']:
+				if dictParam['haltOnError'] == 'yes' and aluLogReason not in ['SendSuccess']:
 					dictParam['aluLogReason'] = aluLogReason
 					break
 
@@ -1436,7 +1462,7 @@ def fncRun(dictParam):
 if __name__ == '__main__':
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.3' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.4' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
@@ -1456,6 +1482,8 @@ if __name__ == '__main__':
 	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
 	parser1.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
 	parser1.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
+	parser1.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait before sending scripts to the router. Default=0', default=0,)
+
 	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
 	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
 	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
@@ -1490,6 +1518,7 @@ if __name__ == '__main__':
 		sshDebug            = args.sshDebug,
 		dataGroupColumn     = args.dataGroupColumn,
 		readTimeOut         = args.readTimeOut,
+		timeBetweenRouters  = args.timeBetweenRouters,
 	)
 
 	dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
