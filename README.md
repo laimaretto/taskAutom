@@ -10,12 +10,12 @@ These libraries have been tested under Ubuntu 20.04 and Windows10 with Python3.8
 
 ###### Ubuntu
 ```bash
-sudo pip3 install -r requirements.txt
+pip3 install taskAutom
 ```
 ###### Windows
 For Windows users, make sure you have Python and [PIP](https://pip.pypa.io/en/stable/installing/) installed.
 ```bash
-py -m pip install -r requirements.txt
+py -m pip install taskAutom
 ```
 
 ### Edit `servers.yml`
@@ -35,14 +35,6 @@ srvr1:
     ip: '2.2.2.2'
     port: 22    
 ```
-
-### Compile
-You can run `taskAutom` directly from the CLI using Python. However, compiling improves performance.
-
-```bash
-python3 -m nuitka taskAutom.py
-```
-Compiling has been tested succesfully under Ubuntu. Don't know if this is directly supported under Windows. If it fails, let me know. Nevertheless, as mentioned, you can run `taskAutom` directly from the CLI using Python
 
 ---
 
@@ -97,18 +89,18 @@ def construir_cliLine(m, datos, lenData, mop=None):
     if mop and m == 0:
         cfg = "\nHeading_2:Router: " + router + ", " + ipSystem + "\n"
 
-    cfg = cfg + "/configure router interface " + intName + " port " + port + "\n"
-    cfg = cfg + "/configure router interface " + intName + " address " + address + "\n"
+    cfg = cfg + f'/configure router interface {intName} port {port}\n'
+    cfg = cfg + f'/configure router interface {intName} address {address}\n'
 
     if m == lenData-1:
-        cfg = cfg + "/configure router interface " + intName + " no shutdown\n" 
+        cfg = cfg + f'/configure router interface {intName} no shutdown\n'
 
 	return cfg
 ```
 
-###### Notes on plugin
+#### Notes on plugin
 
-1) When writing plugins, it is recommended *not* to use abbreviated commands. This will potentially led to errors. For example: `/configure rout int system add 10.0.0.1/32` is discouraged. Better off use `/configure router interface system address 10.0.0.1/32`.
+1) When writing plugins,  *do not* to use abbreviated commands. This will potentially led to errors. For example: `/configure rout int system add 10.0.0.1/32` is discouraged. Better off use `/configure router interface system address 10.0.0.1/32`.
 
 2) Common practice: it is better to try to accommodate plugins so that they reflect they purpose. Then use the configuration parameter `--pluginType=[show|config]` to reflect the spirit of the plugin.
 

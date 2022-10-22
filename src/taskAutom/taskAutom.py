@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright (C) 2015-2022 Lucas Aimaretto / laimaretto@gmail.com
 #
 # This is taskAutom
@@ -36,6 +38,7 @@ from getpass import getpass
 import re
 import calendar
 import random
+import sys
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
@@ -440,18 +443,21 @@ def verifyPlugin(pyFile):
 
 	try:
 		if pyFile.split(".")[-1] == "py":
-			pyFile = pyFile.split(".")[0]
-			#exec ("from " + pyFile + " import construir_cliLine")
-			if '/' in pyFile:
-				pyFile = pyFile.replace('/','.')
-			mod = importlib.import_module(pyFile)
+			# if '/' in pyFile:
+			# 	pyFile = pyFile.replace('/','.')
+			print(pyFile)
+			spec = importlib.util.spec_from_file_location("construir_cliLine",pyFile)
+			mod  = importlib.util.module_from_spec(spec)
+			sys.modules["construir_cliLine"] = mod
+			spec.loader.exec_module(mod)
+			#mod  = importlib.import_module(".","showInterface")
 			print(mod)
 		else:
 			print("Missing config file. Verify extension of the file to be '.py'. Quitting...")
 			quit()
 	except Exception as e:
 		print(e)
-		print("----\nError importing configFile. Quitting ...")
+		print("----\nError importing plugin. Quitting ...")
 		quit()
 
 	return mod
@@ -1459,10 +1465,10 @@ def fncRun(dictParam):
 
 	return 0
 
-if __name__ == '__main__':
+def main():
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.14.4' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.15.3' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
