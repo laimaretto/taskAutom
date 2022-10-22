@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.15.3] - 2022-10-22
+
+- From this version on, `taskAutom` needs to be installed by using `pip`, ie, `pip install taskAutom`.
+
 ## [7.14.4] - 2022-08-11
 
 - Change of `START_SCRIPT` and `END_SCRIPT` defined in `DICT_VENDOR` for `nokia_sros` and `nokia_sros_telnet`.
