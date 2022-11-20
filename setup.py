@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='taskAutom',
-    version='7.15.3',    
+    version='7.15.4',    
     description='A simple task automation tool',
     long_description='A simple task automation tool for NOKIA SROS based routers',
     long_description_content_type='text/x-rst',
@@ -17,7 +17,6 @@ setup(
                       'netmiko==4.1.0',
                       'scp==0.13.3',
                       'pandas==1.4.1',
-                      'nuitka==0.6.10',
                       'pyyaml==5.3.1',
                       'python-docx==0.8.10',
                       'openpyxl==3.0.6',

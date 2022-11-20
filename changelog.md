@@ -1,5 +1,10 @@
 # Versions #
 
+## [7.15.4] - 2022-11-20
+
+- New parameter `-pf/passwordFile`. This allows to store the password in a local file so `taskAutom` will read the password from it. This allows to use `taskAutom` from the crontab.
+    - Becareful: the password is stored in plain text format.
+
 ## [7.15.3] - 2022-10-22
 
 - From this version on, `taskAutom` needs to be installed by using `pip`, ie, `pip install taskAutom`.
