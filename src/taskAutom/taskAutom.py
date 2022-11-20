@@ -173,6 +173,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	outTxt = outTxt + "  Read Timeout:               " + str(dictParam['readTimeOut']) + '\n'
 	outTxt = outTxt + "  Time Between Routers:       " + str(dictParam['timeBetweenRouters']) + '\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
+	outTxt = outTxt + "  Password Filename:          " + str(dictParam['passwordFile']) + '\n'
 	outTxt = outTxt + "  Device Type:                " + str(dictParam['deviceType']) + '\n'
 
 	if dictParam['outputJob'] > 0:
@@ -1373,7 +1374,7 @@ def fncRun(dictParam):
 	# Strict Order
 	if dictParam['strictOrder'] == 'yes':
 		dictParam['progNumThreads'] = 1
-	
+
 	# We obatin the list of routers to trigger connections
 	routers, data = sort_order(data, dictParam)
 
@@ -1468,7 +1469,7 @@ def fncRun(dictParam):
 def main():
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.15.3' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.15.4' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
@@ -1480,6 +1481,7 @@ def main():
 	parser1.add_argument('-xls' ,'--xlsName',      type=str, help='Excel sheet name')
 
 	parser1.add_argument('-u'  ,'--username',      type=str, help='Username to connect to router.', )
+	parser1.add_argument('-pf' ,'--passwordFile',  type=str, help='Filename containing the default password to access the routers. If the file contains several lines of text, only the first line will be considered as the password. Default=None', default=None)
 	parser1.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
 
 	parser1.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
@@ -1508,6 +1510,7 @@ def main():
 		useHeader           = args.useHeader,
 		pyFile              = args.pyFile,
 		username 			= args.username,
+		passwordFile        = args.passwordFile,
 		password 			= None,
 		progNumThreads		= args.threads,
 		logInfo 			= args.logInfo,
@@ -1530,7 +1533,7 @@ def main():
 	dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
 
 	### Ready to go ...
-
+	
 	if dictParam['outputJob'] == 0:
 
 		fncRun(dictParam)
@@ -1538,6 +1541,7 @@ def main():
 	elif (	
 		dictParam['outputJob'] == 2 and 
 		dictParam['username'] and 
+		dictParam['passwordFile'] is None and 
 		dictParam['logInfo'] and 
 		(
 			dictParam['pluginType'] or dictParam['cronTime']
@@ -1551,6 +1555,25 @@ def main():
 
 		fncRun(dictParam)
 
+	elif (
+		dictParam['outputJob'] == 2 and 
+		dictParam['username'] and 
+		dictParam['passwordFile'] is not None and 
+		dictParam['logInfo'] and 
+		(
+			dictParam['pluginType'] or dictParam['cronTime']
+		)		
+	):	
+
+		# Trying to open the password file to obtain the password
+		with open(dictParam['passwordFile']) as pf:
+			dictParam['password'] = pf.readlines()[0].rstrip()
+		fncRun(dictParam)
+
 	else:
 
 		print("Not enough paramteres.\nAt least define --username, --logInfo and --pluginType.\nRun: python taskAutom.py -h for help.\nQuitting...")
+
+### To be run from the python shell
+if __name__ == '__main__':
+	main()
