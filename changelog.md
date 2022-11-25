@@ -1,5 +1,15 @@
 # Versions #
 
+## [7.16.2] - 2022-11-25
+
+- When using `strictOrder=no` the default value is passing data row by row to the plugin. The data is filtered by the `groupColumn` parameter. When using the parameter `pbr/passByRow=no` the complete Excel tab is passed over to the plugin. Once in the plugin, the data can be analyzed by Pandas method `iterutples()`.
+- Update of libraries:
+    - `python-docx==0.8.11`
+    - `pandas`.
+    - `scp` removed becase installed by netmiko
+    - `paramiko` removed becase installed by netmiko
+
+
 ## [7.15.4] - 2022-11-20
 
 - New parameter `-pf/passwordFile`. This allows to store the password in a local file so `taskAutom` will read the password from it. This allows to use `taskAutom` from the crontab.

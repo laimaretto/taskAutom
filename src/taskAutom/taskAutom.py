@@ -11,21 +11,7 @@
 # but WITHOUT ANY WARRANTY of any kind whatsoever.
 #
 
-from distutils import cmd
-from genericpath import isfile
-import paramiko
-import sshtunnel
-from netmiko import ConnectHandler
-from scp import SCPClient
-import pandas as pd
 import json
-
-import docx
-from docx.enum.style import WD_STYLE_TYPE 
-from docx.enum.text import WD_LINE_SPACING
-from docx.shared import Pt
-
-import yaml
 import os
 import time
 import threading
@@ -39,6 +25,18 @@ import re
 import calendar
 import random
 import sys
+
+# installed
+import sshtunnel
+from netmiko import ConnectHandler
+from scp import SCPClient
+import pandas as pd
+import yaml
+import docx
+from docx.enum.style import WD_STYLE_TYPE 
+from docx.enum.text import WD_LINE_SPACING
+from docx.shared import Pt
+
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
@@ -76,6 +74,8 @@ CH_CR					  = "\n"
 CH_COMA 				  = ","
 LOG_GLOBAL                = []
 LOG_CONSOLE               = []
+YES                       = 'yes'
+NO                        = 'no'
 
 # - Parameters per vendor
 DICT_VENDOR = dict(
@@ -144,6 +144,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 	outTxt = outTxt + "  Verify Commands:            " + dictParam['cmdVerify'] + '\n'	
 	outTxt = outTxt + "  Strict Order:               " + dictParam['strictOrder'] + '\n'
+	outTxt = outTxt + "  Pass Data By Row:           " + dictParam['passByRow'] + '\n'
 
 	if dictParam['strictOrder'] == 'yes':
 		outTxt = outTxt + "  Halt-on-Error:              " + dictParam['haltOnError'] + '\n'
@@ -276,23 +277,30 @@ def run_mi_thread(i, CliLine, ip, dictParam):
 
 	return aluLogReason
 
-def sort_order(data, dictParam):
-	"""[List will be ordered and sorted always by the first field which is the system IP of the router]
+def getListOfRouters(data, dictParam):
+	"""
+	Function to obtain the unique list of routers.
+	If using headers, the data will be otained from such column
+	If not using headers, data will be otained from the first column.
+
+	## If using strictOrder, we get the list of routers as is, with out any filtering ##
+	## This is so, because later on, we do a for-loop on this list.
 
 	Args:
-		lista ([list]): [List of IP system]
+		data: Pandas Data File
+		dictParam: configuration parameters of taskAutom
 
 	Returns:
-		[list]: [Ordered List]
+		[list]: list of routers.
 	"""
 
-	ipCol = dictParam['dataGroupColumn']
+	groupColumn = dictParam['dataGroupColumn']
 
 	if dictParam['strictOrder'] == 'yes':
 
 		if dictParam['useHeader'] == 'yes':
 			try:
-				routers = list(data[ipCol])
+				routers = list(data[groupColumn])
 			except Exception as e:
 				print("No column header " + str(e) + " in file " + dictParam['data'] + ". Quitting...\n")
 				quit()
@@ -303,14 +311,14 @@ def sort_order(data, dictParam):
 
 		if dictParam['useHeader'] == 'yes':
 			try:
-				routers = list(data[ipCol].unique())
+				routers = list(data[groupColumn].unique())
 			except Exception as e:
 				print("No column header " + str(e) + " in file " + dictParam['data'] + ". Quitting...\n")
 				quit()				
 		else:
 			routers = list(data[0].unique())
 
-	return routers, data
+	return routers
 
 def verifyCronTime(cronTime):
 	"""[We verify cronTime before moving on]
@@ -603,6 +611,25 @@ def renderMop(aluCliLineJob0, dictParam):
 		f.write(aluCliLineJob0)
 
 def renderCliLine(IPconnect, dictParam, mod, data, i):
+	"""
+	This function renders the script, based both on the Data file (data) and the plugin (py)
+	There are several possibilities for treating the data, depending on the following.
+
+	- groupColumn: how data is filtered
+	- strictOrder: if we follow the order described inside the data file
+	- useHeader: do we pay attention the headers or use numerals instead?
+	- passByRow: do we pass to the module the complete date or only rowByRow? Only valid when strictOrder=no.
+
+	Args:
+		IPconnect (_type_): IP of router (or eventually, the grouped data value)
+		dictParam (_type_): dictionary of parameters
+		mod (_type_):       plugin
+		data (_type_):      Pandas DataFrame
+		i (_type_):         id which identifies the IPconnect value
+
+	Returns:
+		_type_: _description_
+	"""
 
 	#   i             0         1        2        3             4                 5     6  7
 	#   0     10.3.0.41    ZONA_X  0.0.0.0  0.0.1.3      ROUTER_A  TiMOS-C-16.0.R6      1  4
@@ -617,44 +644,69 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 	#   9     10.3.0.50    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_J  TiMOS-B-7.0.R7    9886  4
 
 
-	aluCliLine = ""
+	aluCliLine  = ""
+	groupColumn = dictParam['dataGroupColumn']
+	jobType     = dictParam['outputJob'] 
+	strictOrder = dictParam['strictOrder']
+	useHeader   = dictParam['useHeader']
+	plugin      = dictParam['pyFile']
+	dataFile    = dictParam['data']
+	passByRow   = dictParam['passByRow']
 
-	ipCol = dictParam['dataGroupColumn']
-
-	if dictParam['outputJob'] == 2:
+	if jobType == 2:
 		mop = None
-	elif dictParam['outputJob'] == 0:
+	elif jobType == 0:
 		if i == -1:
 			mop = None
 		else:
 			mop = 1
 
-	if dictParam['strictOrder'] == 'no':
+	if strictOrder == 'no':
 
 		# Since strictOrder = no, then we pass to the module
-		# all the data, row by row, filterd by IPconnect
-		# The length of data is len(data)
-		# The row order is 'j'
+		# all the data, filterd by IPconnect
 
-		if dictParam['useHeader'] == 'yes':
-			pluginData = data[data[ipCol] == IPconnect]
+		if useHeader == 'yes':
+			pluginData = data[data[groupColumn] == IPconnect]
 		else:
-			pluginData = data[data[0] == IPconnect]		
+			pluginData = data[data[0] == IPconnect]
 
-		for j, item in enumerate(pluginData.itertuples()):
+		if passByRow == 'yes':
+
+			# since passByRow is yes, we pass the data to the module row by row
+			# hence we apply in here the itertuples() for-loop, which is the default mode.
+			# The length of data is len(data)
+			# The row order is 'j'
+
+			for j, item in enumerate(pluginData.itertuples()):
+				try:
+					aluCliLine = aluCliLine + mod.construir_cliLine(j, item, len(pluginData), mop)
+				except Exception as e:
+					print('\nError: ' + str(e))
+					print('Row: ' + str(item))
+					print(f'Error trying to use plugin {plugin}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
+					quit()
+
+		else:
+
+			# since passByRow is no, we pass the complete.
+			# the itertuples() for-loop, will be needed inside the plugin.
+			# this is only possible with strictMode == no.
+			# The length of data is len(data)
+			# The row order is 'j'
 			try:
-				aluCliLine = aluCliLine + mod.construir_cliLine(j, item, len(pluginData), mop)
+				aluCliLine = aluCliLine + mod.construir_cliLine(i, pluginData, len(pluginData), mop)
 			except Exception as e:
 				print('\nError: ' + str(e))
-				print('Row: ' + str(item))
-				print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it, or the data file " + dictParam['data']+ ". Quitting...\n")
-				quit()
+				print(f'Error trying to use plugin {plugin}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
+				quit()			
+
 	else:
 
 		# Since strictOrder = yes, then we pass to the module
 		# all the data, row by row, by id i, which comes from 
 		# fncRun(). 
-		# Then the length of data is 1.
+		# Then the length of data is always 1.
 		# The row order is 0
 
 		try:
@@ -663,7 +715,7 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 		except Exception as e:
 			print('\nError: ' + str(e))
 			print('Row: ' + str(pluginData))
-			print("Error trying to use plugin " + dictParam['pyFile'] + ".\nVerify variables inside of it, or the data file " + dictParam['data']+ ". Quitting...\n")
+			print(f'Error trying to use plugin {plugin}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
 			quit()
 
 	try:
@@ -671,10 +723,10 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 			if aluCliLine[-1] == "\n":
 				aluCliLine = aluCliLine[:-1]
 	except:
-		print("Error trying analyze the DATA file " + dictParam['data'] + ".\nVerify it and make sure that the table is consistent. Quitting...\n")
+		print(f'Error trying analyze the DATA file {dataFile}.\nVerify it and make sure that the table is consistent. Quitting...\n')
 		quit()		
 
-	if dictParam['outputJob'] == 2:	
+	if jobType == 2:	
 
 		if len(dictParam['cronTime']) == 0:
 			
@@ -682,7 +734,7 @@ def renderCliLine(IPconnect, dictParam, mod, data, i):
 
 		return aluCliLine
 
-	elif dictParam['outputJob'] == 0:
+	elif jobType == 0:
 
 		return aluCliLine
 ###
@@ -1374,9 +1426,10 @@ def fncRun(dictParam):
 	# Strict Order
 	if dictParam['strictOrder'] == 'yes':
 		dictParam['progNumThreads'] = 1
+		dictParam['passByRow'] = 'yes'
 
 	# We obatin the list of routers to trigger connections
-	routers, data = sort_order(data, dictParam)
+	routers = getListOfRouters(data, dictParam)
 
 	# We take initial time 
 	timeTotalStart 	= time.time()
@@ -1411,6 +1464,14 @@ def fncRun(dictParam):
 		###############
 		# Let's run ....
 		for i, IPconnect in enumerate(routers):
+
+			# The rendering behavior of the script = f(data,plugin,groupColumn) depends on
+			#
+			# - strictOrder = yes/no
+			# - passByRow   = yes/no
+			#
+			# Depending on that, taskAutom will handle differently the data and
+			# the order of connections.
 
 			aluCliLine = renderCliLine(IPconnect, dictParam, mod, data, i)
 
@@ -1447,12 +1508,14 @@ def fncRun(dictParam):
 
 		for i, IPconnect in enumerate(routers):
 
+			# We firt do a rendeCli() for the router IPConnect and save the file
 			tempFname = dictParam['logInfo'] + '/' + 'job0_' + IPconnect + '.cfg'
 			tempCfg   = renderCliLine(IPconnect, dictParam, mod, data, i=-1)
 
 			with open(tempFname,'w') as f:
 				f.write(tempCfg)
 
+			# We do a second call the the renderCli() to save a global file.
 			aluCliLineJob0 = aluCliLineJob0 + renderCliLine(IPconnect, dictParam, mod, data, i)
 
 		verif = verifyConfigFile(aluCliLineJob0)
@@ -1469,7 +1532,7 @@ def fncRun(dictParam):
 def main():
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.15.4' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.16.2' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
@@ -1479,6 +1542,7 @@ def main():
 	parser1.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
 	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
 	parser1.add_argument('-xls' ,'--xlsName',      type=str, help='Excel sheet name')
+	parser1.add_argument('-pbr', '--passByRow',    type=str, help='Pass data to the plugin by row or grouped by -gc. Only valid with strictOrder=no. Default=yes', default='yes', choices=['yes','no'])
 
 	parser1.add_argument('-u'  ,'--username',      type=str, help='Username to connect to router.', )
 	parser1.add_argument('-pf' ,'--passwordFile',  type=str, help='Filename containing the default password to access the routers. If the file contains several lines of text, only the first line will be considered as the password. Default=None', default=None)
@@ -1508,6 +1572,7 @@ def main():
 		data                = args.data,
 		xlsName             = args.xlsName,
 		useHeader           = args.useHeader,
+		passByRow           = args.passByRow,
 		pyFile              = args.pyFile,
 		username 			= args.username,
 		passwordFile        = args.passwordFile,
