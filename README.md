@@ -67,7 +67,7 @@ ip,name,port,interName,ipAddress
 
 The plugin is a Python code which is fed with each row of the DATA file at a time, in order to render a configuration script. It consists of a function called `construir_cliLine()` which accepts four arguments:
 - `m` which is a counter, representing the `row_id` of the data.
-- `datos` which is a `Pandas` series; the data itself.
+- `datos` which is a `Pandas` object; the data itself.
 - `lenData` which is the length of the Pandas dataFrame; i.e.: the amount of rows inside the grouped data.
 - `mop`, a boolean.
 
@@ -140,62 +140,3 @@ Router: router2, 10.0.0.2
 ```
 
 Otherwise, if `taskAutom` is invoked with option `-j/--jobType 2`, it will connect to each and every router, and execute the commands. User and password must be provided in this case.
-
----
-
-## Configuration Options
-
-`taskAutom` can be configured through CLI as shown below.
-
-```bash
-$ python3 taskAutom.py -h
-usage: PROG [options]
-
-Task Automation Parameters.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --version         Version
-  -j {0,2}, --jobType {0,2}
-                        Type of job
-  -d DATA, --data DATA  DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.
-  -py PYFILE, --pyFile PYFILE
-                        PY Template File
-  -gc DATAGROUPCOLUMN, --dataGroupColumn DATAGROUPCOLUMN
-                        Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip
-  -uh {no,yes}, --useHeader {no,yes}
-                        When reading data, consider first row as header. Default=yes
-  -xls XLSNAME, --xlsName XLSNAME
-                        Excel sheet name
-  -u USERNAME, --username USERNAME
-                        Username to connect to router.
-  -th THREADS, --threads THREADS
-                        Number of threads. Default=1
-  -log LOGINFO, --logInfo LOGINFO
-                        Description for log folder
-  -jh JUMPHOSTSFILE, --jumpHostsFile JUMPHOSTSFILE
-                        jumpHosts file. Default=servers.yml
-  -inv INVENTORYFILE, --inventoryFile INVENTORYFILE
-                        inventory.csv file with per router connection parameters. Default=None
-  -pt {show,config}, --pluginType {show,config}
-                        Type of plugin.
-  -gm {no,yes}, --genMop {no,yes}
-                        Generate MOP. Default=no
-  -crt CRONTIME [CRONTIME ...], --cronTime CRONTIME [CRONTIME ...]
-                        Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).
-  -rto READTIMEOUT, --readTimeOut READTIMEOUT
-                        Read Timeout. Time in seconds which to wait for data from router. Default=10
-  -tun {no,yes}, --sshTunnel {no,yes}
-                        Use SSH Tunnel to routers. Default=yes
-  -dt {nokia_sros,nokia_sros_telnet}, --deviceType {nokia_sros,nokia_sros_telnet}
-                        Device Type. Default=nokia_sros
-  -so {no,yes}, --strictOrder {no,yes}
-                        Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no
-  -hoe {no,yes}, --haltOnError {no,yes}
-                        If using --strictOrder, halts if error found on execution. Default=no
-  -cv {no,yes}, --cmdVerify {no,yes}
-                        Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes
-  -sd {no,yes}, --sshDebug {no,yes}
-                        Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no
-
-```
