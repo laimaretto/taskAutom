@@ -1,5 +1,13 @@
 # Versions #
 
+## [7.16.3] - 2022-11-28
+
+- Update of libraries:
+    - `python-docx==0.8.11`
+    - `pandas==1.5.2`.
+    - `openpyxl==3.0.10`
+    - `xlrd` removed
+
 ## [7.16.2] - 2022-11-25
 
 - When using `strictOrder=no` the default value is passing data row by row to the plugin. The data is filtered by the `groupColumn` parameter. When using the parameter `pbr/passByRow=no` the complete Excel tab is passed over to the plugin. Once in the plugin, the data can be analyzed by Pandas method `iterutples()`.
