@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.16.4] - 2022-12-04
+
+- When the execution is finished, a `json` version of the configuration parameters of `taskAutom` is saved under the folder `-l/--logInfo`.
+
 ## [7.16.3] - 2022-11-28
 
 - Update of libraries:
