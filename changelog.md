@@ -1,5 +1,10 @@
 # Versions #
 
+## [7.16.5] - 2022-12-06
+
+- New function `getDictParam()` that returns the `dictParam` dictionary with all the required parameters for the connections.
+- The function `fncRun()` returns the updated version of `dictParam`.
+
 ## [7.16.4] - 2022-12-04
 
 - When the execution is finished, a `json` version of the configuration parameters of `taskAutom` is saved under the folder `-l/--logInfo`.
