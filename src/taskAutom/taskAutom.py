@@ -234,7 +234,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 			json.dump(dictParam, f)
 
 		with open(dictParam['logInfo'] + '/00_report.json', 'w') as f:
-			del dictParam['password']
+			dictParam['password'] = '*****'
 			json.dump(dictParam, f)					
 
 	outTxt = outTxt + separator + '\n'
@@ -1397,6 +1397,76 @@ class myConnection(threading.Thread):
 # Main Function                    #
 ####################################
 
+def getDictParam():
+
+	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.16.5' )
+
+	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
+	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
+	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File')
+	parser1.add_argument('-log','--logInfo' ,      type=str, required=True, help='Description for log folder. Logs, MOP and scripts will be stored here.', )
+
+	parser1.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
+	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
+	parser1.add_argument('-xls' ,'--xlsName',      type=str, help='Excel sheet name')
+	parser1.add_argument('-pbr', '--passByRow',    type=str, help='Pass data to the plugin by row or grouped by -gc. Only valid with strictOrder=no. Default=yes', default='yes', choices=['yes','no'])
+
+	parser1.add_argument('-u'  ,'--username',      type=str, help='Username to connect to router.', )
+	parser1.add_argument('-pf' ,'--passwordFile',  type=str, help='Filename containing the default password to access the routers. If the file contains several lines of text, only the first line will be considered as the password. Default=None', default=None)
+	parser1.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
+
+	parser1.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
+	parser1.add_argument('-inv','--inventoryFile', type=str, help='inventory.csv file with per router connection parameters. Default=None', default=None)
+	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin.', choices=['show','config'])
+	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
+	parser1.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
+	parser1.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait before sending scripts to the router. Default=0', default=0,)
+
+	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
+	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
+	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-hoe','--haltOnError',   type=str, help='If using --strictOrder, halts if error found on execution. Default=no', default='no', choices=['no','yes'])
+	parser1.add_argument('-cv', '--cmdVerify',     type=str, help='Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
+	parser1.add_argument('-sd', '--sshDebug',      type=str, help='Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no', default='no', choices=['no','yes'])
+
+	args = parser1.parse_args()
+
+	### reading parameters
+
+	dictParam = dict(
+		outputJob 			= args.jobType,
+		data                = args.data,
+		xlsName             = args.xlsName,
+		useHeader           = args.useHeader,
+		passByRow           = args.passByRow,
+		pyFile              = args.pyFile,
+		username 			= args.username,
+		passwordFile        = args.passwordFile,
+		password 			= None,
+		progNumThreads		= args.threads,
+		logInfo 			= args.logInfo,
+		useSSHTunnel 		= args.sshTunnel,
+		cronTime            = args.cronTime,
+		jumpHostsFile       = args.jumpHostsFile,
+		genMop              = args.genMop,
+		strictOrder         = args.strictOrder,
+		haltOnError         = args.haltOnError,
+		inventoryFile       = args.inventoryFile,
+		deviceType          = args.deviceType,
+		pluginType          = args.pluginType,
+		cmdVerify           = args.cmdVerify,
+		sshDebug            = args.sshDebug,
+		dataGroupColumn     = args.dataGroupColumn,
+		readTimeOut         = args.readTimeOut,
+		timeBetweenRouters  = args.timeBetweenRouters,
+	)
+
+	dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
+
+	return dictParam
+
 def fncRun(dictParam):
 	"""[summary]
 
@@ -1534,77 +1604,13 @@ def fncRun(dictParam):
 		renderMop(aluCliLineJob0, dictParam)
 		fncPrintResults(routers, timeTotalStart, dictParam)
 
-	return 0
+	return dictParam
 
 def main():
 
-	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.16.4' )
-
-	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
-	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
-	parser1.add_argument('-py' ,'--pyFile' ,       type=str, required=True, help='PY Template File')
-	parser1.add_argument('-log','--logInfo' ,      type=str, required=True, help='Description for log folder. Logs, MOP and scripts will be stored here.', )
-
-	parser1.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the DATA file, to group routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
-	parser1.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
-	parser1.add_argument('-xls' ,'--xlsName',      type=str, help='Excel sheet name')
-	parser1.add_argument('-pbr', '--passByRow',    type=str, help='Pass data to the plugin by row or grouped by -gc. Only valid with strictOrder=no. Default=yes', default='yes', choices=['yes','no'])
-
-	parser1.add_argument('-u'  ,'--username',      type=str, help='Username to connect to router.', )
-	parser1.add_argument('-pf' ,'--passwordFile',  type=str, help='Filename containing the default password to access the routers. If the file contains several lines of text, only the first line will be considered as the password. Default=None', default=None)
-	parser1.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
-
-	parser1.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
-	parser1.add_argument('-inv','--inventoryFile', type=str, help='inventory.csv file with per router connection parameters. Default=None', default=None)
-	parser1.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin.', choices=['show','config'])
-	parser1.add_argument('-gm', '--genMop',        type=str, help='Generate MOP. Default=no', default='no', choices=['no','yes'])
-	parser1.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
-	parser1.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
-	parser1.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait before sending scripts to the router. Default=0', default=0,)
-
-	parser1.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
-	parser1.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
-	parser1.add_argument('-so', '--strictOrder',   type=str, help='Follow strict order of routers inside the csvFile. If enabled, threads = 1. Default=no', default='no', choices=['no','yes'])
-	parser1.add_argument('-hoe','--haltOnError',   type=str, help='If using --strictOrder, halts if error found on execution. Default=no', default='no', choices=['no','yes'])
-	parser1.add_argument('-cv', '--cmdVerify',     type=str, help='Enable cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
-	parser1.add_argument('-sd', '--sshDebug',      type=str, help='Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no', default='no', choices=['no','yes'])
-
-	args = parser1.parse_args()
-
-	### reading parameters
-
-	dictParam = dict(
-		outputJob 			= args.jobType,
-		data                = args.data,
-		xlsName             = args.xlsName,
-		useHeader           = args.useHeader,
-		passByRow           = args.passByRow,
-		pyFile              = args.pyFile,
-		username 			= args.username,
-		passwordFile        = args.passwordFile,
-		password 			= None,
-		progNumThreads		= args.threads,
-		logInfo 			= args.logInfo,
-		useSSHTunnel 		= args.sshTunnel,
-		cronTime            = args.cronTime,
-		jumpHostsFile       = args.jumpHostsFile,
-		genMop              = args.genMop,
-		strictOrder         = args.strictOrder,
-		haltOnError         = args.haltOnError,
-		inventoryFile       = args.inventoryFile,
-		deviceType          = args.deviceType,
-		pluginType          = args.pluginType,
-		cmdVerify           = args.cmdVerify,
-		sshDebug            = args.sshDebug,
-		dataGroupColumn     = args.dataGroupColumn,
-		readTimeOut         = args.readTimeOut,
-		timeBetweenRouters  = args.timeBetweenRouters,
-	)
-
-	dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
-
 	### Ready to go ...
+
+	dictParam = getDictParam()
 	
 	if dictParam['outputJob'] == 0:
 
