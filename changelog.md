@@ -1,5 +1,14 @@
 # Versions #
 
+## [7.16.7] - 2022-12-14
+
+- update
+
+
+## [7.16.6] - 2022-12-06
+
+- update
+
 ## [7.16.5] - 2022-12-06
 
 - New function `getDictParam()` that returns the `dictParam` dictionary with all the required parameters for the connections.
