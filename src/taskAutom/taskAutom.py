@@ -231,11 +231,8 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 				f.write(k+'\n')
 
 		with open(DIRECTORY_LOG_INFO + '00_report.json', 'w') as f:
-			json.dump(dictParam, f)
-
-		with open(dictParam['logInfo'] + '/00_report.json', 'w') as f:
 			dictParam['password'] = '*****'
-			json.dump(dictParam, f)					
+			json.dump(dictParam, f)
 
 	outTxt = outTxt + separator + '\n'
 
@@ -1400,7 +1397,7 @@ class myConnection(threading.Thread):
 def getDictParam():
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.16.6' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.16.7' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
