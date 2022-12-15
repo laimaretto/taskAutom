@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='taskAutom',
-    version='7.16.7',
+    version='7.16.8',
     description='A simple task automation tool',
     long_description='A simple task automation tool for NOKIA SROS based routers',
     long_description_content_type='text/x-rst',
@@ -17,7 +17,6 @@ setup(
                       'pandas==1.5.2',
                       'pyyaml==5.3.1',
                       'python-docx==0.8.11',
-                      'openpyxl==3.0.10',
                       ],
     python_requires='>=3.8',
     classifiers=[

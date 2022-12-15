@@ -86,7 +86,10 @@ DICT_VENDOR = dict(
 		FIN_SCRIPT       = "",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
-		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
+		HOSTNAME         = "/show chassis | match Name", # no \n in the end
+		HOSTNAME_REGEX   = "Name\s+.\s(\S+)",
+		HW_TYPE          = "/show chassis | match Type", # no \n in the end
+		HW_TYPE_REGEX    = "Type\s+.\s(.+)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
 		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
@@ -102,7 +105,10 @@ DICT_VENDOR = dict(
 		FIN_SCRIPT       = "",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
-		HOSTNAME_REGEX   = "(A:|B:)(.+)(>|#)",
+		HOSTNAME         = "/show chassis | match Name", # no \n in the end
+		HOSTNAME_REGEX   = "Name\s+.\s(\S+)",
+		HW_TYPE          = "/show chassis | match Type", # no \n in the end
+		HW_TYPE_REGEX    = "Type\s+.\s(.+)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
 		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
@@ -185,7 +191,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + separator + '\n'
 
 		routers = LOG_GLOBAL
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers']
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','HwType','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers']
 		df = pd.DataFrame(routers,columns=columns)
 
 		outTxt = outTxt + "\nTiming:\n"
@@ -834,6 +840,7 @@ class myConnection(threading.Thread):
 			self.connInfo['timos']      = self.fncAuxGetVal(self.connInfo, 'timos')
 			self.connInfo['hostname']   = self.fncAuxGetVal(self.connInfo, 'hostname')
 			self.connInfo['timosMajor'] = self.fncAuxGetVal(self.connInfo, 'timosMajor')
+			self.connInfo['hwType']     = self.fncAuxGetVal(self.connInfo, 'hwType')
 			
 			if self.outputJob == 2:
 
@@ -961,6 +968,7 @@ class myConnection(threading.Thread):
 			runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
 			match   = re.compile(inRegex).search(rx)
+
 			try:
 				timos   = match.groups()[0]
 			except:
@@ -970,16 +978,31 @@ class myConnection(threading.Thread):
 
 		elif what == 'hostname':
 
-			inRegex  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
+			inText  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME']
+			runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
+			inRegex = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
+			match   = re.compile(inRegex).search(rx)
 
 			try:
-				newHn    = connInfo['conn2rtr'].find_prompt()
-				match    = re.compile(inRegex).search(newHn)					
-				hostname = match.groups()[1]
+				hostname = match.groups()[0]
 			except:
 				hostname = "host_" + str(self.num) + "_not-matched"
 
 			return hostname
+
+		elif what == 'hwType':
+
+			inText  = DICT_VENDOR[connInfo['deviceType']]['HW_TYPE']
+			runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
+			inRegex = DICT_VENDOR[connInfo['deviceType']]['HW_TYPE_REGEX']
+			match   = re.compile(inRegex).search(rx)
+
+			try:
+				hwType = match.groups()[0]
+			except:
+				hwType = "not-matched"
+
+			return hwType			
 
 		elif what == "timosMajor":
 
@@ -1283,6 +1306,7 @@ class myConnection(threading.Thread):
 			connInfo['systemIP'],
 			connInfo['timos'],
 			connInfo['hostname'],
+			connInfo['hwType'],
 			connInfo['username'],
 			connInfo['aluLogReason'],
 			str(connId),
@@ -1397,7 +1421,7 @@ class myConnection(threading.Thread):
 def getDictParam():
 
 	parser1 = argparse.ArgumentParser(description='Task Automation Parameters.', prog='PROG', usage='%(prog)s [options]')
-	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.16.7' )
+	parser1.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.16.8' )
 
 	parser1.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job')
 	parser1.add_argument('-d'  ,'--data',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')

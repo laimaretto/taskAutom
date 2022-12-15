@@ -1,5 +1,10 @@
 # Versions #
 
+## [7.16.8] - 2022-12-15
+
+- new parameter `hwType` obtained from `show chassis`
+- the `hostname` is no longer obtained from `find_prompt()` but from `show chassis`.
+
 ## [7.16.7] - 2022-12-14
 
 - update
