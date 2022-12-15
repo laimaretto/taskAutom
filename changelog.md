@@ -1,5 +1,11 @@
 # Versions #
 
+## [7.17.1] - 2022-12-15
+
+- the functions `fncConnectToRouter()`, `routerRunRoutine()`, `routerLogin()` and `fncSshServer()`,  now return `connInfo` instead of separate variables
+- the variables `controlPlaneAccess` and `aluLogged` are now booleans with default False
+- the variables `sshServer` and `conn2rtr` default to `None` and only change if the connections come up.
+
 ## [7.16.8] - 2022-12-15
 
 - new parameter `hwType` obtained from `show chassis`
