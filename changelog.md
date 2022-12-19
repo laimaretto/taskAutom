@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.17.2] - 2022-12-19
+
+- Better help description when invoking the `-h` paramter on the CLI.
+
 ## [7.17.1] - 2022-12-15
 
 - the functions `fncConnectToRouter()`, `routerRunRoutine()`, `routerLogin()` and `fncSshServer()`,  now return `connInfo` instead of separate variables
