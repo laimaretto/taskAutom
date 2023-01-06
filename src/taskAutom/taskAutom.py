@@ -28,6 +28,7 @@ import sys
 
 # installed
 import sshtunnel
+import paramiko
 from netmiko import ConnectHandler
 from scp import SCPClient
 import pandas as pd
@@ -155,7 +156,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 	if dictParam['strictOrder'] == 'yes':
 		outTxt = outTxt + "  Halt-on-Error:              " + dictParam['haltOnError'] + '\n'
 
-	if bool(dictParam['cronTime']):
+	if dictParam['cronTime']['type'] is not None:
 		outTxt = outTxt + "  CRON Config:                " + str(dictParam['cronTime']) + '\n'
 
 	outTxt = outTxt + "  Total Threads:              " + str(dictParam['progNumThreads']) + '\n'
@@ -339,47 +340,75 @@ def verifyCronTime(cronTime):
 		[list]
 	"""
 
-	if cronTime in ['',[],None]:
-		return []
-	elif len(cronTime)!=6:
-		print('Wrong cronTime length. Quitting ...')
-		quit()
-	else:
-		cronName   = str(cronTime[0])
-		month      = str(cronTime[1])
-		weekday    = str(cronTime[2])
-		dayOfMonth = int(cronTime[3])
-		hour       = int(cronTime[4])
-		minute     = int(cronTime[5])
+	dCron = {}
 
-	if cronName[0] in [str(x) for x in range(0,10)]:
+	if cronTime in ['',[],None]:
+		dCron['type'] = None
+		return dCron
+	else:
+		cronType = cronTime[0]
+		if cronType not in ['oneshot','periodic']:
+			print("CronType con only be either 'oneshot' or 'interval'. Quitting ...")
+			quit()
+
+		dCron['type'] = cronType
+		
+		if cronType == 'oneshot':
+			if len(cronTime)!=7:
+				print('Wrong cronTime length for oneshot. Quitting ...')
+				quit()
+			else:
+				dCron['cronName']   = str(cronTime[1])
+				dCron['month']      = str(cronTime[2])
+				dCron['weekday']    = str(cronTime[3])
+				dCron['dayOfMonth'] = int(cronTime[4])
+				dCron['hour']       = int(cronTime[5])
+				dCron['minute']     = int(cronTime[6])
+
+		elif cronType == 'periodic':
+			if len(cronTime)!=3:
+				print('Wrong cronTime length for periodic. Quitting ...')
+				quit()
+			else:
+				dCron['cronName']   = str(cronTime[1])
+				dCron['interval']   = int(cronTime[2])			
+
+	if dCron['cronName'][0] in [str(x) for x in range(0,10)]:
 		print('Wrong CRON name. First char cannot be a number. Quitting ...')
 		quit()		
-	elif not re.compile(r'^[0-9A-Za-z]{1,32}$').search(cronName):
+	elif not re.compile(r'^\S+$').search(dCron['cronName']):
 		print('Wrong CRON name. Quitting ...')
 		quit()
 	
-	if month not in [calendar.month_name[x].lower() for x in range(1,13)]:
-		print('Wrong month name. Quitting ...')
-		quit()
+	if dCron['type'] == 'oneshot':
 
-	if weekday not in [calendar.day_name[x].lower() for x in range(0,7)]:
-		print('Wrong weekDay name. Quitting ...')
-		quit()		
+		if dCron['month'] not in [calendar.month_name[x].lower() for x in range(1,13)]:
+			print('Wrong month name. Quitting ...')
+			quit()
 
-	if dayOfMonth not in list(range(1,32)):
-		print('Wrong dayOfMonth value. Quitting ...')
-		quit()			
+		if dCron['weekday'] not in [calendar.day_name[x].lower() for x in range(0,7)]:
+			print('Wrong weekDay name. Quitting ...')
+			quit()		
 
-	if hour not in list(range(0,24)):
-		print('Wrong hour value. Quitting ...')
-		quit()
+		if dCron['dayOfMonth'] not in list(range(1,32)):
+			print('Wrong dayOfMonth value. Quitting ...')
+			quit()			
 
-	if minute not in list(range(0,60)):
-		print('Wrong minute value. Quitting ...')
-		quit()
+		if dCron['hour'] not in list(range(0,24)):
+			print('Wrong hour value. Quitting ...')
+			quit()
 
-	return cronTime
+		if dCron['minute'] not in list(range(0,60)):
+			print('Wrong minute value. Quitting ...')
+			quit()
+
+	elif dCron['type'] == 'periodic':
+
+		if dCron['interval'] not in list(range(30,42949672)):
+			print('Wrong interval value. Quitting ...')
+			quit()
+
+	return dCron
 
 def verifyServers(jumpHostsFile):
 	"""We verify the SERVERS dictionary before moving on.
@@ -826,7 +855,7 @@ class myConnection(threading.Thread):
 		self.ROUTER_USER     = [self.ROUTER_USER1]
 
 		# We create a variable to detect if CRON has been established ...
-		self.useCron    = len(self.connInfo['cronTime'])
+		#self.useCron    = len(self.connInfo['cronTime'])
 		
 	def run(self):
 
@@ -846,7 +875,7 @@ class myConnection(threading.Thread):
 
 				fncPrintConsole(self.connInfo['strConn'] + "#### Running routine for " + self.connInfo['systemIP'] +  " ...")
 
-				if self.useCron > 0:
+				if self.connInfo['cronTime']['type'] is not None:
 
 					self.s = self.fncUploadFile(self.script, self.connInfo)
 
@@ -856,7 +885,7 @@ class myConnection(threading.Thread):
 
 					if self.sftpStatus == 1:
 
-						self.script    = self.runCron(self.scriptName, self.connInfo)
+						self.script   = self.runCron(self.scriptName, self.connInfo)
 						self.connInfo = self.routerRunRoutine(self.script, self.connInfo)
 
 				else:
@@ -1054,9 +1083,8 @@ class myConnection(threading.Thread):
 		if connInfo['useSSHTunnel'] == 'yes':
 
 			sshSftp       = self.fncSshServer(connInfo, sftp=True)
-			sftpAccess    = sshSftp[0]
-			sftpPort      = sshSftp[1]
-			sshServerSftp = sshSftp[2]
+			sftpPort      = sshSftp['localPort']
+			sshServerSftp = sshSftp['server']
 
 			transport = paramiko.Transport((IP_LOCALHOST,sftpPort))
 			transport.connect(None,connInfo['username'],connInfo['password'])
@@ -1217,7 +1245,7 @@ class myConnection(threading.Thread):
 		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
 		info_error_list  = DICT_VENDOR[connInfo['deviceType']]['INFO_ERROR_LIST']
 
-		if connInfo['cronTime']:
+		if connInfo['cronTime']['type'] is not None:
 			fncPrintConsole(connInfo['strConn'] + "Establishing script with CRON...", show=1)
 		else:
 			fncPrintConsole(connInfo['strConn'] + "Running script per line...", show=1)
@@ -1260,7 +1288,7 @@ class myConnection(threading.Thread):
 		outRx     = connInfo['outRx']
 		outRxJson = connInfo['outRxJson']
 
-		if connInfo['aluLogged'] == True and not bool(connInfo['cronTime']):
+		if connInfo['aluLogged'] == True and connInfo['cronTime']['type'] is None:
 
 			with open(aluFileCommands,'a') as fc:
 				fc.write(script)
@@ -1330,8 +1358,8 @@ class myConnection(threading.Thread):
 		def setScript(cronName, script):
 
 			cfg = ""
-			cfg = cfg + 'script "' + cronName + '" owner "taskAutom"\nshutdown\n'
-			cfg = cfg + 'location cf3:\\' + script + '\n'
+			cfg = cfg + f'script "{cronName}" owner "taskAutom"\nshutdown\n'
+			cfg = cfg + f'location cf3:\{script}\n'
 			cfg = cfg + 'no shutdown\n'
 			cfg = cfg + 'exit\n'
 			return cfg
@@ -1339,9 +1367,9 @@ class myConnection(threading.Thread):
 		def action(cronName):
 
 			cfg = ""
-			cfg = cfg + 'action "' + cronName + '" owner "taskAutom"\nshutdown\n'
+			cfg = cfg + f'action "{cronName}" owner "taskAutom"\nshutdown\n'
 			cfg = cfg + 'results cf3:\\resultTestCron.txt\n'
-			cfg = cfg + 'script "' + cronName + '" owner "taskAutom"\n'
+			cfg = cfg + f'script "{cronName}" owner "taskAutom"\n'
 			cfg = cfg + 'no shutdown\n'
 			cfg = cfg + 'exit\n'
 			return cfg
@@ -1349,44 +1377,60 @@ class myConnection(threading.Thread):
 		def policy(cronName):
 
 			cfg = ""
-			cfg = cfg + 'script-policy "' + cronName + '" owner "taskAutom"\nshutdown\n'
+			cfg = cfg + f'script-policy "{cronName}" owner "taskAutom"\nshutdown\n'
 			cfg = cfg + 'results cf3:\\resultTestCron.txt\n'
-			cfg = cfg + 'script "' + cronName + '" owner "taskAutom"\n'
+			cfg = cfg + f'script "{cronName}" owner "taskAutom"\n'
 			cfg = cfg + 'no shutdown\n'
 			cfg = cfg + 'exit\n'
 			return cfg
 
-		def schedule(timos, cronName, month, weekday, dayOfMonth, hour, minute):
+		def schedule(connInfo):
 
-			fin_script = DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']
+			timos    = connInfo['timosMajor']
+			cronName = connInfo['cronTime']['cronName']
+			cronType = connInfo['cronTime']['type']
 
 			cfg = ""
-			cfg = cfg + 'schedule "' + cronName + '" owner "taskAutom"\nshutdown\n'
+			cfg = cfg + f'schedule "{cronName}" owner "taskAutom"\nshutdown\n'
 
 			if timos > 7:
-				cfg = cfg + 'script-policy "' + cronName + '" owner "taskAutom"\n'
+				cfg = cfg + f'script-policy "{cronName}" owner "taskAutom"\n'
 			else:
-				cfg = cfg + 'action "' + cronName + '" owner "taskAutom"\n'
+				cfg = cfg + f'action "{cronName}" owner "taskAutom"\n'
+
+			if cronType == 'oneshot':
+
+				dayOfMonth = str(connInfo['cronTime']['dayOfMonth'])
+				hour       = str(connInfo['cronTime']['hour'])
+				minute     = str(connInfo['cronTime']['minute'])
+				month      = str(connInfo['cronTime']['month'])
+				weekday    = str(connInfo['cronTime']['weekday'])
 			
-			cfg = cfg + "type oneshot\n"
-			cfg = cfg + "day-of-month " + dayOfMonth + "\n"
-			cfg = cfg + "hour " + hour + "\n"
-			cfg = cfg + "minute " + minute + "\n"
-			cfg = cfg + "month " + month + "\n"
-			cfg = cfg + "weekday " + weekday + "\n"
-			cfg = cfg + "no shutdown \n"
-			cfg = cfg + "exit\n"
-			cfg = cfg + "exit all\n"
-			cfg = cfg + "admin save\n"
-			cfg = cfg + "echo " + fin_script + "\n"
+				cfg = cfg + 'type oneshot\n'
+				cfg = cfg + f'day-of-month "{dayOfMonth}"\n'
+				cfg = cfg + f'hour "{hour}"\n'
+				cfg = cfg + f'minute "{minute}"\n'
+				cfg = cfg + f'month "{month}"\n'
+				cfg = cfg + f'weekday "{weekday}"\n'
+				cfg = cfg + 'no shutdown \n'
+				cfg = cfg + 'exit\n'
+				cfg = cfg + 'exit all\n'
+				cfg = cfg + 'admin save\n'
+
+			elif cronType == 'periodic':
+
+				interval = str(connInfo['cronTime']['interval'])
+
+				cfg = cfg + 'type periodic\n'
+				cfg = cfg + f'interval {interval}\n'
+				cfg = cfg + 'no shutdown \n'
+				cfg = cfg + 'exit all\n'
+				cfg = cfg + 'admin save\n'				
+
+
 			return cfg
 
-		cronName   = str(connInfo['cronTime'][0])
-		month      = str(connInfo['cronTime'][1])
-		weekday    = str(connInfo['cronTime'][2])
-		dayOfMonth = str(connInfo['cronTime'][3])
-		hour       = str(connInfo['cronTime'][4])
-		minute     = str(connInfo['cronTime'][5])
+		cronName   = connInfo['cronTime']['cronName']
 
 		start_script = DICT_VENDOR[connInfo['deviceType']]['START_SCRIPT']
 
@@ -1398,16 +1442,16 @@ class myConnection(threading.Thread):
 			cfg = cfg + setScript(cronName, script)
 			cfg = cfg + policy(cronName)
 			cfg = cfg + "/configure system cron\n"
-			cfg = cfg + schedule(connInfo['timosMajor'], cronName, month, weekday, dayOfMonth, hour, minute)
+			cfg = cfg + schedule(connInfo)
 
 		else:
 
 			cfg = cfg + "/configure cron\n"
 			cfg = cfg + setScript(cronName, script)
 			cfg = cfg + action(cronName)
-			cfg = cfg + schedule(connInfo['timosMajor'], cronName, month, weekday, dayOfMonth, hour, minute)
+			cfg = cfg + schedule(connInfo)
 
-		cfg = "/environment no more\necho " + start_script + "\n" + cfg
+		cfg = "/environment no more\n" + cfg
 
 		return cfg
 
@@ -1418,7 +1462,7 @@ class myConnection(threading.Thread):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.17.2' )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.17.6' )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
 	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute.')
@@ -1454,7 +1498,7 @@ def getDictParam():
 	miscGroup = parser.add_argument_group('Misc')
 	miscGroup.add_argument('-inv','--inventoryFile', type=str, help='Inventory file with per router connection parameters. Default=None', default=None)
 	miscGroup.add_argument('-gm', '--genMop',        type=str, help='Generate MOP document in docx format. Default=no', default='no', choices=['no','yes'])
-	miscGroup.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45).', default=[])
+	miscGroup.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), type(ie: oneshot or interval).\nIf type=oneshot, need to define: month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45). If type=interval, interval in seconds.', default=[])
 	miscGroup.add_argument('-sd', '--sshDebug',      type=str, help='Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no', default='no', choices=['no','yes'])
 
 	args = parser.parse_args()
@@ -1496,7 +1540,7 @@ def getDictParam():
 
 	# CronTime
 	dictParam['cronTime'] = verifyCronTime(dictParam['cronTime'])
-	if bool(dictParam['cronTime']):
+	if dictParam['cronTime']['type'] is not None:
 		dictParam['pluginType']  = 'config'
 		dictParam['strictOrder'] = 'no'
 
