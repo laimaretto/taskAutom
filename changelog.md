@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.17.6] - 2023-01-05
+
+- Better support for CRON, either `oneshot` or `periodic`.
+
 ## [7.17.2] - 2022-12-19
 
 - Better help description when invoking the `-h` paramter on the CLI.
