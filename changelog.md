@@ -1,5 +1,11 @@
 # Versions #
 
+## [7.17.10] - 2023-01-13
+
+- Better detection of individual connections' status, for logging purposes.
+- `-tbr/--timeBetweenRouters` now in milliseconds.
+    - tweaking the number of threads and the time between routers, will allow to maximize the number of connections, specially when using at jump-server. 
+
 ## [7.17.6] - 2023-01-05
 
 - Better support for CRON, either `oneshot` or `periodic`.
