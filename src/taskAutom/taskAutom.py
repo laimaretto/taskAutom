@@ -179,7 +179,7 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + "  Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) + '\n'
 	
 	outTxt = outTxt + "  Read Timeout:               " + str(dictParam['readTimeOut']) + '\n'
-	outTxt = outTxt + "  Time Between Routers:       " + str(dictParam['timeBetweenRouters']) + '\n'
+	outTxt = outTxt + "  Time Between Routers:       " + str(dictParam['timeBetweenRouters']) + 'ms\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
 	outTxt = outTxt + "  Password Filename:          " + str(dictParam['passwordFile']) + '\n'
 	outTxt = outTxt + "  Device Type:                " + str(dictParam['deviceType']) + '\n'
@@ -192,8 +192,9 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 		outTxt = outTxt + separator + '\n'
 
 		routers = LOG_GLOBAL
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','HwType','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers']
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','HwType','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers','writeCmd','writeRx','writeJson']
 		df = pd.DataFrame(routers,columns=columns)
+		#df = pd.DataFrame(dictParam['aluLogReason'],columns=columns)
 
 		outTxt = outTxt + "\nTiming:\n"
 
@@ -232,14 +233,17 @@ def fncPrintResults(routers, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', A
 
 		with open(DIRECTORY_LOG_INFO + '00_report.txt','w') as f:
 			f.write(outTxt)
+			f.close()
 
 		with open(DIRECTORY_LOG_INFO + '00_log_console.txt','w') as f:
 			for k in LOG_CONSOLE:
 				f.write(k+'\n')
+			f.close()
 
 		with open(DIRECTORY_LOG_INFO + '00_report.json', 'w') as f:
 			dictParam['password'] = '*****'
 			json.dump(dictParam, f)
+			f.close()
 
 	outTxt = outTxt + separator + '\n'
 
@@ -423,6 +427,7 @@ def verifyServers(jumpHostsFile):
 	try:
 		with open(jumpHostsFile,'r') as f:
 			servers = yaml.load(f, Loader=yaml.FullLoader)
+			f.close()
 	except:
 		print("Missing " + jumpHostsFile + " file. Quitting..")
 		quit()
@@ -647,6 +652,7 @@ def renderMop(aluCliLineJob0, dictParam):
 
 	with open(job0text,'w') as f:
 		f.write(aluCliLineJob0)
+		f.close()
 
 def renderCliLine(IPconnect, dictParam, mod, data, i):
 	"""
@@ -854,13 +860,10 @@ class myConnection(threading.Thread):
 		self.ROUTER_USER3    = ["extraUser2","extraPassword2"]
 		self.ROUTER_USER     = [self.ROUTER_USER1]
 
-		# We create a variable to detect if CRON has been established ...
-		#self.useCron    = len(self.connInfo['cronTime'])
-		
 	def run(self):
 
 		# We update the connection info dictionary, after we've set up the connection towards the router...
-		self.connInfo.update(self.fncConnectToRouter(self.connInfo))
+		self.connInfo = self.fncConnectToRouter(self.connInfo)
 
 		if bool(self.connInfo['conn2rtr']) is True and self.connInfo['aluLogged'] is True:
 			
@@ -891,16 +894,10 @@ class myConnection(threading.Thread):
 				else:
 					
 					self.connInfo = self.routerRunRoutine(self.script, self.connInfo)
-	
-				if self.connInfo['runStatus'] == 1:
 
-					fncPrintConsole(self.connInfo['strConn'] + "Logout: " + str(self.connInfo['aluLogReason']))
+				fncPrintConsole(self.connInfo['strConn'] + "End-of-run: " + str(self.connInfo['aluLogReason']))
 
-				else:
-
-					fncPrintConsole(self.connInfo['strConn'] + str(self.connInfo['aluLogReason']))
-
-		self.logData(self.connInfo, self.script, self.logInfo, self.LOG_TIME, self.plugin)
+		self.connInfo = self.logData(self.connInfo, self.script, self.logInfo, self.LOG_TIME, self.plugin, self.DIRECTORY_LOGS)
 
 		#######################
 		# closing connections #
@@ -909,12 +906,13 @@ class myConnection(threading.Thread):
 			self.connInfo['conn2rtr'].disconnect()
 
 		if self.connInfo['useSSHTunnel'] == 'yes' and bool(self.connInfo['sshServer']) == True:
-			self.connInfo['sshServer'].stop()
+			self.connInfo['sshServer'].stop(force=True)
 
 		#                     #
 		#######################
 
-		return self.connInfo['aluLogReason']
+		#return self.connInfo['aluLogReason']
+		return self.connInfo['logs']
 
 	def fncWriteToConnection(self, inText, connInfo):
 
@@ -944,7 +942,7 @@ class myConnection(threading.Thread):
 					runStatus    = 1
 				except Exception as e:
 					outputTxt	 = ''
-					aluLogReason = str(e)
+					aluLogReason = str(e).replace('\n',' ')
 					runStatus    = -1						
 
 			elif pluginType == 'show':
@@ -958,7 +956,7 @@ class myConnection(threading.Thread):
 					runStatus    = 1
 				except Exception as e:
 					outputTxt    = ''
-					aluLogReason = str(e)
+					aluLogReason = str(e).replace('\n',' ')
 					runStatus    = -1
 
 		elif type(inText) == type(''):
@@ -969,7 +967,7 @@ class myConnection(threading.Thread):
 				runStatus    = 1					
 			except Exception as e:
 				outputTxt    = ''
-				aluLogReason = str(e)
+				aluLogReason = str(e).replace('\n',' ')
 				runStatus    = -1
 
 		return runStatus, aluLogReason, outputTxt, outputJson
@@ -1077,6 +1075,7 @@ class myConnection(threading.Thread):
 		# We hence don't log it thereafter.
 		with open(fileLocal,'w') as fc:
 			fc.write(datos)
+			fc.close()
 
 		out = [-1,'sftpError',fileRemote]
 
@@ -1084,7 +1083,7 @@ class myConnection(threading.Thread):
 
 			sshSftp       = self.fncSshServer(connInfo, sftp=True)
 			sftpPort      = sshSftp['localPort']
-			sshServerSftp = sshSftp['server']
+			sshServerSftp = sshSftp['sshServer']
 
 			transport = paramiko.Transport((IP_LOCALHOST,sftpPort))
 			transport.connect(None,connInfo['username'],connInfo['password'])
@@ -1165,30 +1164,42 @@ class myConnection(threading.Thread):
 
 		except Exception as e:
 
-			aluLogReason = str(e)
+			aluLogReason = str(e).replace('\n',' ')
 			server = -1
 			fncPrintConsole(connInfo['strConn'] + str(aluLogReason))
+			server.stop(force=True)
 
 		if server != -1:
-			server.start()
-			localPort = server.local_bind_port
 
-			fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))
-			fncPrintConsole(connInfo['strConn'] + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
+			try:
 
-			server.check_tunnels()
+				server.start()
+				localPort = server.local_bind_port
 
-			if server.tunnel_is_up[('0.0.0.0',localPort)] == False:
-				fncPrintConsole(connInfo['strConn'] + "Error SSH Tunnel")
-				aluLogReason = 'Error SSH Tunnel'
-				server.stop()
-			else:
-				controlPlaneAccess = True
+				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))
+				fncPrintConsole(connInfo['strConn'] + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))				
+
+				server.check_tunnels()
+
+				if server.tunnel_is_up[('0.0.0.0',localPort)] == False:
+					aluLogReason = 'SSH Error: Tunnel is not up.'
+					fncPrintConsole(connInfo['strConn'] + aluLogReason)
+					controlPlaneAccess = False
+					server.stop(force=True)
+				else:
+					controlPlaneAccess = True
+
+			except Exception as e:
+				#fncPrintConsole(e)
+				aluLogReason = "Problems starting the SSH tunnel."
+				fncPrintConsole(connInfo['strConn'] + aluLogReason)
+				controlPlaneAccess = False
+				server.stop(force=True)
 
 		connInfo['aluLogReason']       = aluLogReason
 		connInfo['controlPlaneAccess'] = controlPlaneAccess
 		connInfo['localPort']          = localPort
-		connInfo['server']             = server
+		connInfo['sshServer']          = server
 
 		return connInfo
 
@@ -1223,7 +1234,7 @@ class myConnection(threading.Thread):
 			except Exception as e:
 				conn2rtr     = None
 				aluLogged 	 = False
-				aluLogReason = str(e)				
+				aluLogReason = str(e).replace('\n',' ')				
 				aluLogUser   = tempUser
 				aluPass      = "PassN/A"
 				fncPrintConsole(connInfo['strConn'] + aluLogReason + ": " + systemIP)
@@ -1253,6 +1264,8 @@ class myConnection(threading.Thread):
 		datos = datos.split('\n')
 		runStatus, aluLogReason, outRx, outRxJson = self.fncWriteToConnection(datos, connInfo)
 
+		aluLogReason = aluLogReason.replace('\n',' ')
+
 		tEnd  = time.time()
 		tDiff = tEnd - tStart
 
@@ -1278,39 +1291,68 @@ class myConnection(threading.Thread):
 
 		return connInfo
 
-	def logData(self, connInfo, script, logInfo, LOG_TIME, plugin):
+	def logData(self, connInfo, script, logInfo, LOG_TIME, plugin, DIRECTORY_LOGS):
 
 		# Filenames
-		aluFileCommands  = self.DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
-		aluFileOutRx	 = self.DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
-		aluFileOutRxJson = self.DIRECTORY_LOGS + connInfo['hostname'] + "_rx.json"
+		aluFileCommands  = DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
+		aluFileOutRx	 = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
+		aluFileOutRxJson = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.json"
 
 		outRx     = connInfo['outRx']
 		outRxJson = connInfo['outRxJson']
 
+		writeCmd  = 'n/a'
+		writeRx   = 'n/a'
+		writeJson = 'n/a'
+
 		if connInfo['aluLogged'] == True and connInfo['cronTime']['type'] is None:
 
-			with open(aluFileCommands,'a') as fc:
-				fc.write(script)
+			try:
+				with open(aluFileCommands,'a+') as fc:
+					fc.write(script)
+					fc.close()
+					writeCmd = 'yes'
+			except Exception as e:
+				fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
+				writeCmd = 'no'
 
 		if connInfo['aluLogged'] == True:
 
-			with open(aluFileOutRx,'a') as fw:
-				fw.write(outRx)
+			try:
+				with open(aluFileOutRx,'a+') as fw:
+					fw.write(outRx)
+					fw.close()
+					writeRx = 'yes'
+			except Exception as e:
+				fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
+				writeRx = 'no'
 
-		if connInfo['aluLogged'] == True and outRxJson != {}:
+		if connInfo['aluLogged'] == True and connInfo['pluginType'] == 'show':
 
 			if not os.path.isfile(aluFileOutRxJson):
-				with open(aluFileOutRxJson,'w') as fj:
-					outRxJson['name'] = connInfo['hostname']
-					outRxJson['ip']   = connInfo['systemIP']
-					json.dump(outRxJson,fj)
+				try:
+					with open(aluFileOutRxJson,'w') as fj:
+						outRxJson['name'] = connInfo['hostname']
+						outRxJson['ip']   = connInfo['systemIP']
+						json.dump(outRxJson,fj)
+						fj.close()
+						writeJson = 'yes'
+				except Exception as e:
+					fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))					
+					writeJson = 'no'
 			else:
-				with open(aluFileOutRxJson) as fj:
-					data      = json.load(fj)
-				with open(aluFileOutRxJson,'w') as fj:
-					outRxJson = dict(list(outRxJson.items()) + list(data.items()))
-					json.dump(outRxJson,fj)
+				try:
+					with open(aluFileOutRxJson) as fj:
+						data      = json.load(fj)
+						fj.close()
+					with open(aluFileOutRxJson,'w') as fj:
+						outRxJson = dict(list(outRxJson.items()) + list(data.items()))
+						json.dump(outRxJson,fj)
+						fj.close()
+					writeJson = 'yes'
+				except Exception as e:
+					fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
+					writeJson = 'no'
 
 		if connInfo['useSSHTunnel'] == 'yes':
 
@@ -1343,11 +1385,18 @@ class myConnection(threading.Thread):
 			float(fncFormatTime(connInfo['tDiff'], adjust=False)),
 			str(connInfo['readTimeOut']),
 			str(lenServers),
+			writeCmd,
+			writeRx,
+			writeJson
 			]
+
+		LOG_GLOBAL.append(aluCsvLine)
 
 		fncPrintConsole(connInfo['strConn'] + "logData: " + str(aluCsvLine))
 
-		LOG_GLOBAL.append(aluCsvLine)
+		connInfo['logs'] = aluCsvLine
+
+		return connInfo
 
 	def sshStop(self, connInfo):
 		self.sshServer.stop()
@@ -1462,7 +1511,7 @@ class myConnection(threading.Thread):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.17.6' )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.17.10' )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
 	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute.')
@@ -1492,7 +1541,7 @@ def getDictParam():
 	connGroup.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
 	connGroup.add_argument('-cv', '--cmdVerify',     type=str, help='Enable --cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
 	connGroup.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
-	connGroup.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait before sending scripts to the router. Default=0', default=0,)
+	connGroup.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait between routers, in miliseconds (ms), before sending scripts to the router. Default=0', default=0,)
 
 
 	miscGroup = parser.add_argument_group('Misc')
@@ -1599,6 +1648,7 @@ def checkCredentials(dictParam):
 		# Trying to open the password file to obtain the password
 		with open(dictParam['passwordFile']) as pf:
 			dictParam['password'] = pf.readlines()[0].rstrip()
+			pf.close()
 		
 		#fncRun(dictParam)
 		pass
@@ -1661,6 +1711,8 @@ def fncRun(dictParam):
 
 		###############
 		# Let's run ....
+		args = []
+
 		for i, IPconnect in enumerate(routers):
 
 			# The rendering behavior of the script = f(data,plugin,groupColumn) depends on
@@ -1675,12 +1727,18 @@ def fncRun(dictParam):
 
 			# Wait before sending scripts to the routers ...
 			if dictParam['timeBetweenRouters'] > 0:
-				print("Waiting " + str(dictParam['timeBetweenRouters']) + "s ...")
-				time.sleep(dictParam['timeBetweenRouters'])
+				timeToWait = dictParam['timeBetweenRouters'] / 1000
+				print("Waiting " + str(timeToWait) + "s ...")
+				time.sleep(timeToWait)
+
+			#args.append((i,aluCliLine,IPconnect,dictParam))
 
 			# running routine
 			if dictParam['strictOrder'] == 'no':
 				threads_list.apply_async(run_mi_thread, args=(i, aluCliLine, IPconnect, dictParam))
+				#threads_list.apply(run_mi_thread, args=(i, aluCliLine, IPconnect, dictParam))
+				#threads_list.starmap_async(run_mi_thread, args)
+				#dictParam['aluLogReason'] = threads_list.starmap(run_mi_thread, args, chunksize=10)
 			else:
 				aluLogReason = run_mi_thread(i, aluCliLine, IPconnect, dictParam)
 
@@ -1690,7 +1748,7 @@ def fncRun(dictParam):
 
 		if dictParam['strictOrder'] == 'no':
 			threads_list.close()
-			### The .join() implies that processes/threads need to finish themselves before moving on.
+			### The .join() implies that ALL processes/threads need to finish themselves before moving on.
 			threads_list.join()
 
 		print("all done")
@@ -1712,6 +1770,7 @@ def fncRun(dictParam):
 
 			with open(tempFname,'w') as f:
 				f.write(tempCfg)
+				f.close()
 
 			# We do a second call the the renderCli() to save a global file.
 			aluCliLineJob0 = aluCliLineJob0 + renderCliLine(IPconnect, dictParam, mod, data, i)
