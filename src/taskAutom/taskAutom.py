@@ -350,16 +350,14 @@ def verifyCronTime(cronTime):
 		dCron['type'] = None
 		return dCron
 	else:
-		cronType = cronTime[0]
-		if cronType not in ['oneshot','periodic']:
-			print("CronType con only be either 'oneshot' or 'interval'. Quitting ...")
+		dCron['type'] = cronTime[0]
+		if dCron['type'] not in ['oneshot','periodic']:
+			print("CronType con only be either 'oneshot' or 'periodic'. Quitting ...")
 			quit()
-
-		dCron['type'] = cronType
 		
-		if cronType == 'oneshot':
+		if dCron['type'] == 'oneshot':
 			if len(cronTime)!=7:
-				print('Wrong cronTime length for oneshot. Quitting ...')
+				print('Wrong cronTime length for "oneshot". Quitting ...')
 				quit()
 			else:
 				dCron['cronName']   = str(cronTime[1])
@@ -369,9 +367,9 @@ def verifyCronTime(cronTime):
 				dCron['hour']       = int(cronTime[5])
 				dCron['minute']     = int(cronTime[6])
 
-		elif cronType == 'periodic':
+		elif dCron['type'] == 'periodic':
 			if len(cronTime)!=3:
-				print('Wrong cronTime length for periodic. Quitting ...')
+				print('Wrong cronTime length for "periodic". Quitting ...')
 				quit()
 			else:
 				dCron['cronName']   = str(cronTime[1])
@@ -1485,7 +1483,7 @@ class myConnection(threading.Thread):
 
 		cfg = ""
 
-		if connInfo['timosMajor'] > 7:
+		if connInfo['timosMajor'] > 8:
 
 			cfg = cfg + "/configure system script-control\n"
 			cfg = cfg + setScript(cronName, script)
@@ -1511,7 +1509,7 @@ class myConnection(threading.Thread):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.17.10' )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.17.11' )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
 	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute.')
@@ -1547,7 +1545,7 @@ def getDictParam():
 	miscGroup = parser.add_argument_group('Misc')
 	miscGroup.add_argument('-inv','--inventoryFile', type=str, help='Inventory file with per router connection parameters. Default=None', default=None)
 	miscGroup.add_argument('-gm', '--genMop',        type=str, help='Generate MOP document in docx format. Default=no', default='no', choices=['no','yes'])
-	miscGroup.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: name(ie: test), type(ie: oneshot or interval).\nIf type=oneshot, need to define: month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45). If type=interval, interval in seconds.', default=[])
+	miscGroup.add_argument('-crt','--cronTime',      type=str, nargs='+' , help='Data for CRON: type(ie: oneshot or periodic), name(ie: test).\nIf type=oneshot, need to define: month(ie april), weekday(ie monday), day-of-month(ie 28), hour(ie 17), minute(ie 45). If type=periodic, need to define: interval in seconds (ie 35).', default=[])
 	miscGroup.add_argument('-sd', '--sshDebug',      type=str, help='Enables debuging of SSH interaction with the network. Stored on debug.log. Default=no', default='no', choices=['no','yes'])
 
 	args = parser.parse_args()

@@ -1,5 +1,13 @@
 # Versions #
 
+## [7.17.12] - 2023-01-27
+
+- CRON config update.
+
+## [7.17.11] - 2023-01-27
+
+- CRON config now applies different configuration if `timosMajor` > 8.
+
 ## [7.17.10] - 2023-01-13
 
 - Better detection of individual connections' status, for logging purposes.
