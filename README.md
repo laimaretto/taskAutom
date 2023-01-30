@@ -38,7 +38,7 @@ srvr1:
 
 ---
 
-## Usage ##
+## Bulk Script Execution on routers ##
 
 The program needs two mandatory inputs: a) DATA file and b) a plugin, which is nothing but a configuration template.
 
@@ -78,13 +78,13 @@ The plugin is a Python code which is fed with each row of the DATA file at a tim
 ```python
 def construir_cliLine(m, datos, lenData, mop=None):
 
-	ipSystem   = datos.ip
-	router     = datos.name
-	port       = datos.port
-	intName    = datos.interName
-	address    = datos.ipAddress
+    ipSystem   = datos.ip
+    router     = datos.name
+    port       = datos.port
+    intName    = datos.interName
+    address    = datos.ipAddress
 
-	cfg        = ""
+    cfg        = ""
 
     if mop and m == 0:
         cfg = "\nHeading_2:Router: " + router + ", " + ipSystem + "\n"
@@ -121,9 +121,8 @@ If fieds in the inventory CSV file are left empty, default values are used.
 
 When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `Heading_2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using the prefix `Heading_3`.
 
----
 
-## Result ##
+### Result
 
 If `taskAutom` is invoked with option `-j/--jobType 0`, a text file with the rendered output, will be genereated.
 
@@ -140,3 +139,14 @@ Router: router2, 10.0.0.2
 ```
 
 Otherwise, if `taskAutom` is invoked with option `-j/--jobType 2`, it will connect to each and every router, and execute the commands. User and password must be provided in this case.
+
+---
+
+## Bulk SCP/SFTP transfer to routers ##
+
+There is also the possibility of bulk transfer of files to several routers. To do so you need to to the following:
+
+- use `jobtype=3`
+- prepare a dataFile with the following three column names: `ip|ftpLocalFilename|ftpRemoteFilename`.
+
+Next, `taskAutom` will connect to each and every router, transfering the `ftpLocalFilename` and creating on the remote device a file with the name `ftpRemoteFilename`.
