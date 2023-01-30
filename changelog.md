@@ -1,5 +1,20 @@
 # Versions #
 
+## [7.18.1] - 2023-01-30
+
+- Variables obtained through `argparse` are set to `True/False` depending on the input being `yes/no`. So now the treatment is hanlde as a boolen when needed.
+- New functionality to bulk updload files through SCP/SFTP.
+    - For this a new `dataFile` structure is needed with the following minimum columns: `ip|ftpLocalFilename|ftpRemoteFilename`.
+- Code reordering.
+
+## [7.17.13] - 2023-01-27
+
+- CRON config update.
+
+## [7.17.11] - 2023-01-27
+
+- CRON config now applies different configuration if `timosMajor` > 8.
+
 ## [7.17.10] - 2023-01-13
 
 - Better detection of individual connections' status, for logging purposes.
