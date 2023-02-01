@@ -1,5 +1,11 @@
 # Versions #
 
+## [7.18.2] - 2023-02-01
+
+- The regex for timos and hostname have been changed
+- New paramter to control log file names `-fn/--logFileName`.
+- Retrieving aux values now tries `auxRetry` times.
+
 ## [7.18.1] - 2023-01-30
 
 - Variables obtained through `argparse` are set to `True/False` depending on the input being `yes/no`. So now the treatment is hanlde as a boolen when needed.
