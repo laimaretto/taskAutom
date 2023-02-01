@@ -86,9 +86,9 @@ DICT_VENDOR = dict(
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME         = "/show chassis | match Name", # no \n in the end
-		HOSTNAME_REGEX   = "Name\s+.\s(\S+)",
+		HOSTNAME_REGEX   = "Name\s+:\s(\S+)",
 		HW_TYPE          = "/show chassis | match Type", # no \n in the end
-		HW_TYPE_REGEX    = "Type\s+.\s(.+)",
+		HW_TYPE_REGEX    = "Type\s+:\s(.+)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
 		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
@@ -105,9 +105,9 @@ DICT_VENDOR = dict(
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME         = "/show chassis | match Name", # no \n in the end
-		HOSTNAME_REGEX   = "Name\s+.\s(\S+)",
+		HOSTNAME_REGEX   = "Name\s+:\s(\S+)",
 		HW_TYPE          = "/show chassis | match Type", # no \n in the end
-		HW_TYPE_REGEX    = "Type\s+.\s(.+)",
+		HW_TYPE_REGEX    = "Type\s+:\s(.+)",
 		SHOW_REGEX       = "(\/show|show)\s.+",
 		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
@@ -138,6 +138,7 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 	outTxt = outTxt + "  DATA File:                  " + str(dictParam['dataFile']) + '\n'
 	outTxt = outTxt + "  DATA UseHeader:             " + str(dictParam['useHeader']) + '\n'
 	outTxt = outTxt + "  Folder logInfo:             " + dictParam['logInfo'] + '\n'
+	outTxt = outTxt + "  Log FileName:               " + dictParam['logFileName'] + '\n'
 	outTxt = outTxt + "  Text File:                  " + dictParam['logInfo'] + "/job0_" + str(dictParam['pyFileAlone']) + ".txt" + '\n'
 
 	if dictParam['genMop'] is True:
@@ -818,6 +819,7 @@ class myConnection():
 		self.DIRECTORY_LOGS   = dictParam['DIRECTORY_LOGS']
 		self.ALU_FILE_OUT_CSV = dictParam['ALU_FILE_OUT_CSV']
 		self.logInfo          = dictParam['logInfo']
+		self.logFileName      = dictParam['logFileName']
 		self.LOG_TIME         = dictParam['LOG_TIME']
 		self.plugin           = dictParam['pyFile']
 
@@ -855,6 +857,7 @@ class myConnection():
 			'ftpRemoteFilename':ftpRemoteFilename,
 			'pluginScript':pluginScript,
 			'cronScript':None,
+			'auxRetry':dictParam['auxRetry'],
 		}
 
 		# Do we you use jumpHosts?
@@ -997,11 +1000,23 @@ class myConnection():
 
 	def fncAuxGetVal(self, connInfo, what):
 
+		def _getData(inText,connInfo):
+
+			auxRetry = connInfo['auxRetry']
+
+			for i in range(auxRetry):
+				runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
+				if runStatus == 1:
+					break
+
+			return rx
+
 		if what == "timos":
 
 			inText  = DICT_VENDOR[connInfo['deviceType']]['VERSION']
-			runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
+			#runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
+			rx      = _getData(inText,connInfo)
 			match   = re.compile(inRegex).search(rx)
 
 			try:
@@ -1014,8 +1029,9 @@ class myConnection():
 		elif what == 'hostname':
 
 			inText  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME']
-			runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
+			#runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
+			rx      = _getData(inText,connInfo)			
 			match   = re.compile(inRegex).search(rx)
 
 			try:
@@ -1028,8 +1044,9 @@ class myConnection():
 		elif what == 'hwType':
 
 			inText  = DICT_VENDOR[connInfo['deviceType']]['HW_TYPE']
-			runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
+			#runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['HW_TYPE_REGEX']
+			rx      = _getData(inText,connInfo)			
 			match   = re.compile(inRegex).search(rx)
 
 			try:
@@ -1335,9 +1352,14 @@ class myConnection():
 	def logData(self, connInfo, logInfo, LOG_TIME, plugin, DIRECTORY_LOGS):
 
 		# Filenames
-		aluFileCommands  = DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
-		aluFileOutRx	 = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
-		aluFileOutRxJson = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.json"
+		if self.logFileName == 'hostname':
+			aluFileCommands  = DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
+			aluFileOutRx	 = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
+			aluFileOutRxJson = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.json"
+		else:
+			aluFileCommands  = DIRECTORY_LOGS + connInfo['systemIP'] + "_commands.cfg"
+			aluFileOutRx	 = DIRECTORY_LOGS + connInfo['systemIP'] + "_rx.txt"
+			aluFileOutRxJson = DIRECTORY_LOGS + connInfo['systemIP'] + "_rx.json"			
 
 		writeCmd  = 'n/a'
 		writeRx   = 'n/a'
@@ -1585,7 +1607,7 @@ def createLogFolder(dictParam):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.18.1' )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.18.2' )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
 	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2,3], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute. j=3, to upload files via SFTP.')
@@ -1597,6 +1619,7 @@ def getDictParam():
 	groupData = parser.add_argument_group('Data Related')
 	groupData.add_argument('-d'  ,'--dataFile',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
 	groupData.add_argument('-log','--logInfo' ,      type=str, required=True, help='Name of the log folder. Logs, MOP and scripts will be stored here.', )
+	groupData.add_argument('-fn','--logFileName' ,  type=str, help='Name of the log fileName, either "ip" or "hostname". Default=hostname', default='hostname', choices=['ip','hostname'] )
 	groupData.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the data file, to filter routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
 	groupData.add_argument('-uh', '--useHeader',     type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
 	groupData.add_argument('-xls' ,'--xlsSheetName',      type=str, help='Excel sheet name')
@@ -1616,6 +1639,7 @@ def getDictParam():
 	connGroup.add_argument('-cv', '--cmdVerify',     type=str, help='Enable --cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
 	connGroup.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	connGroup.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait between routers, in miliseconds (ms), before sending scripts to the router. Default=0', default=0,)
+	connGroup.add_argument('-axr' ,'--auxRetry',     type=int, help='Times to try obtaining aux values. Default=5', default=5,)
 
 
 	miscGroup = parser.add_argument_group('Misc')
@@ -1640,6 +1664,7 @@ def getDictParam():
 		password 			= None,
 		progNumThreads		= args.threads,
 		logInfo 			= args.logInfo,
+		logFileName         = args.logFileName,
 		useSSHTunnel 		= True if args.sshTunnel == 'yes' else False,
 		cronTime            = args.cronTime,
 		jumpHostsFile       = args.jumpHostsFile,
@@ -1654,6 +1679,8 @@ def getDictParam():
 		dataGroupColumn     = args.dataGroupColumn,
 		readTimeOut         = args.readTimeOut,
 		timeBetweenRouters  = args.timeBetweenRouters,
+		auxRetry            = args.auxRetry,
+
 	)
 
 	################
@@ -1703,6 +1730,11 @@ def getDictParam():
 	# We obatin the list of routers to trigger connections
 	# if jobType = 3, it returns a tuple (ip,fileName)
 	dictParam['listOfRouters'] = getListOfRouters(dictParam)
+
+	# Check auxReytr
+	if dictParam['auxRetry'] < 1:
+		print('auxRetry must be greater than 0.\nQuitting...')
+		quit()	
 
 	# We check credentials
 	dictParam = checkCredentials(dictParam)	
