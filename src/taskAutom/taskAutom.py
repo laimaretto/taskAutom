@@ -158,8 +158,6 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 	if dictParam['cronTime']['type'] is not None:
 		outTxt = outTxt + "  CRON Config:                " + str(dictParam['cronTime']) + '\n'
 
-	outTxt = outTxt + "  Total Threads:              " + str(dictParam['progNumThreads']) + '\n'
-
 	if dictParam['strictOrder'] is False:
 		outTxt = outTxt + "  Total Routers:              " + str(len(listOfRouters)) + '\n'
 	else:
@@ -177,6 +175,7 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 	else:
 		outTxt = outTxt + "  Use SSH tunnel:             " + str(dictParam['useSSHTunnel']) + '\n'
 	
+	outTxt = outTxt + "  Total Threads:              " + str(dictParam['progNumThreads']) + '\n'
 	outTxt = outTxt + "  Read Timeout:               " + str(dictParam['readTimeOut']) + '\n'
 	outTxt = outTxt + "  Time Between Routers:       " + str(dictParam['timeBetweenRouters']) + 'ms\n'
 	outTxt = outTxt + "  Username:                   " + str(dictParam['username']) + '\n'
@@ -247,6 +246,9 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 			if len(dictParam['jumpHosts']) > 0:
 				for srv in dictParam['jumpHosts']:
 					dictParam['jumpHosts'][srv]['password'] = '*****'
+			if len(dictParam['inventory']) > 0:
+				for ip in dictParam['inventory']:
+					dictParam['inventory'][ip]['password'] = '*****'
 			json.dump(dictParam, f)
 			f.close()
 
@@ -556,41 +558,53 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 	df2 = df.copy()
 	df2 = df2.fillna("")
 
+	dOut   = {}
+
 	for row in df2.itertuples():
 
-		ip   = row.ip
-		jh   = row.jumpHost
-		dt   = row.deviceType
-		tun  = row.useSSHTunnel
-		rto  = row.readTimeOut
+		ip       = row.ip
+		jh       = row.jumpHost
+		dt       = row.deviceType
+		tun      = row.useSSHTunnel
+		rto      = row.readTimeOut
+		username = row.username
+		password = row.password
 
 		if tun not in ['yes','no','']:
-			print("Inventory: The router " + ip + " is not using a valid sshTunnel option. For default, leave empty. Quitting...")
-			quit()			
+			print(f'Inventory: The router {ip} is not using a valid sshTunnel option. For default, leave empty. Quitting...')
+			quit()
+		else:
+			tun = True if row.useSSHTunnel == 'yes' else False
 
-		if tun == 'yes':
+		if tun is True:
 
 			serversList = list(verifyServers(jumpHostsFile).keys()) + ['']
 
 			if jh not in serversList:
-				print("Inventory: The router " + ip + " is using sshtunnel and has not a valid jumpHost. If empty, using default. Available: " + str(serversList) + ". Quitting...")
+				print(f'Inventory: The router {ip} is using sshtunnel and has not a valid jumpHost.\nIf empty, using default. Available servers inside the file {jumpHostsFile}: {str(serversList)}.\nQuitting...')
 				quit()
 
 		if dt not in list(DICT_VENDOR.keys()) + ['']:
-			print("Inventory: The router " + ip + " is not using a valid deviceType. For default, leave empty. Quitting...")
+			print(f'Inventory: The router {ip} is not using a valid deviceType. For default, leave empty. Quitting...')
 			quit()
 
 		if rto != '':
 			try:
 				int(rto)
 			except:
-				print("Inventory: The router " + ip + " has not a valid ReadTimeOut. For default, leave empty. Quitting...")
-				quit()				
+				print(f'Inventory: The router {ip} has not a valid ReadTimeOut. For default, leave empty. Quitting...')
+				quit()
 
+		dOut[ip] = {
+			'username':username,
+			'password':password,
+			'deviceType':dt,
+			'useSSHTunnel':tun,
+			'readTimeOut':rto,
+			'jumpHost':jh,
+		}
 
-	df3 = df2.set_index('ip').transpose().to_dict()
-
-	return df3
+	return dOut
 
 def renderMop(aluCliLineJob0, dictParam):
 	"""[Generates a MOP based on the CSV and plugin information]
@@ -867,8 +881,8 @@ class myConnection():
 			self.connInfo['jumpHost'] = -1
 
 		# ### Update per router data with information from inventory
-		if dictParam['inventoryFile'] != None and self.connInfo['systemIP'] in self.connInfo['inventory'].keys():
-			self.tempDict = self.connInfo['inventory'][systemIP]
+		if dictParam['inventoryFile'] != None and self.connInfo['systemIP'] in dictParam['inventory'].keys():
+			self.tempDict = dictParam['inventory'][systemIP]
 			for key in self.tempDict.keys():
 				if self.tempDict[key] != '':
 					self.connInfo[key] = self.tempDict[key]
@@ -1014,7 +1028,6 @@ class myConnection():
 		if what == "timos":
 
 			inText  = DICT_VENDOR[connInfo['deviceType']]['VERSION']
-			#runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['VERSION_REGEX']
 			rx      = _getData(inText,connInfo)
 			match   = re.compile(inRegex).search(rx)
@@ -1029,7 +1042,6 @@ class myConnection():
 		elif what == 'hostname':
 
 			inText  = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME']
-			#runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['HOSTNAME_REGEX']
 			rx      = _getData(inText,connInfo)			
 			match   = re.compile(inRegex).search(rx)
@@ -1044,7 +1056,6 @@ class myConnection():
 		elif what == 'hwType':
 
 			inText  = DICT_VENDOR[connInfo['deviceType']]['HW_TYPE']
-			#runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
 			inRegex = DICT_VENDOR[connInfo['deviceType']]['HW_TYPE_REGEX']
 			rx      = _getData(inText,connInfo)			
 			match   = re.compile(inRegex).search(rx)
@@ -1607,7 +1618,7 @@ def createLogFolder(dictParam):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.18.2' )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2022 - laimaretto@gmail.com - Version: 7.18.3' )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
 	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2,3], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute. j=3, to upload files via SFTP.')
@@ -1708,7 +1719,7 @@ def getDictParam():
 	# Inventory
 	dictParam['inventory'] = {}
 	if dictParam['inventoryFile'] != None:
-		dictParam['inventory'] = verifyInventory(dictParam['inventoryFile'], dictParam['jumpHostsFile'])	
+		dictParam['inventory'] = verifyInventory(dictParam['inventoryFile'], dictParam['jumpHostsFile'])
 
 	# Plugin File
 	if dictParam['outputJob'] in [0,2]:
