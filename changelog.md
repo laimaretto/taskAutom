@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.18.3] - 2023-02-02
+
+- Better inventory file checking.
+
 ## [7.18.2] - 2023-02-01
 
 - The regex for timos and hostname have been changed
