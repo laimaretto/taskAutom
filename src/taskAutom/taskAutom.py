@@ -89,7 +89,7 @@ DICT_VENDOR = dict(
 		HOSTNAME_REGEX   = "Name\s+:\s(\S+)",
 		HW_TYPE          = "/show chassis | match Type", # no \n in the end
 		HW_TYPE_REGEX    = "Type\s+:\s(.+)",
-		SHOW_REGEX       = "(\/show|show)\s.+",
+		SHOW             = "",
 		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
@@ -97,6 +97,25 @@ DICT_VENDOR = dict(
 		REMOTE_PORT      = 22,
 		SFTP_PORT        = 22,
 	),
+	md_nokia_sros=dict(
+		START_SCRIPT     = "", 
+		FIRST_LINE       = "",
+		LAST_LINE        = "",
+		FIN_SCRIPT       = "",
+		VERSION 	     = "show version", # no \n in the end
+		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
+		HOSTNAME         = "/show chassis | match Name", # no \n in the end
+		HOSTNAME_REGEX   = "Name\s+:\s(\S+)",
+		HW_TYPE          = "/show chassis | match Type", # no \n in the end
+		HW_TYPE_REGEX    = "Type\s+:\s(.+)",
+		SHOW             = "info json\n",
+		SEND_CMD_REGEX   = r"#\s+$",
+		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
+		MINOR_ERROR_LIST = ["^MINOR:.+"],
+		INFO_ERROR_LIST  = ["^INFO:.+"],
+		REMOTE_PORT      = 22,
+		SFTP_PORT        = 22,
+	),	
 	nokia_sros_telnet=dict(
 		START_SCRIPT     = "", 
 		FIRST_LINE       = "\n/environment no more\n",
@@ -108,7 +127,7 @@ DICT_VENDOR = dict(
 		HOSTNAME_REGEX   = "Name\s+:\s(\S+)",
 		HW_TYPE          = "/show chassis | match Type", # no \n in the end
 		HW_TYPE_REGEX    = "Type\s+:\s(.+)",
-		SHOW_REGEX       = "(\/show|show)\s.+",
+		SHOW             = "",
 		SEND_CMD_REGEX   = r"#\s+$",
 		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
 		MINOR_ERROR_LIST = ["^MINOR:.+"],
@@ -304,8 +323,11 @@ def getListOfRouters(dictParam):
 	data        = dictParam['data']
 	outputJob   = dictParam['outputJob']
 
-	if outputJob in [0,2]:
+	dOut = {}
 
+	if outputJob in [0,2]:
+		# If strictOrder is True, we get the list of routers
+		# as it is defined inside the dataFile
 		if dictParam['strictOrder'] is True:
 
 			if dictParam['useHeader'] is True:
@@ -318,6 +340,8 @@ def getListOfRouters(dictParam):
 				routers = list(data[0])
 
 		else:
+		# If strictOrder is False, we get the unique list of routers
+		# as it is defined inside the dataFile. The order here is not important.
 
 			if dictParam['useHeader'] is True:
 				try:
@@ -327,8 +351,6 @@ def getListOfRouters(dictParam):
 					quit()				
 			else:
 				routers = list(data[0].unique())
-
-		return routers
 
 	else:
 
@@ -341,7 +363,26 @@ def getListOfRouters(dictParam):
 			print("Something happened with the data file " + dictParam['dataFile'] + ".\n" + str(e) + ".\nQuitting...")
 			quit()		
 
-		return routers
+
+	# We build a dictionary with per-router connection info.
+	for info in routers:
+
+		if outputJob in [0,2]:
+			router = info
+		else:
+			router = info[0]
+
+		dOut[router] = {
+			'username':dictParam['username'],
+			'password':dictParam['password'],
+			'deviceType':dictParam['deviceType'],
+			'useSSHTunnel':dictParam['useSSHTunnel'],
+			'readTimeOut':dictParam['readTimeOut'],
+			'jumpHost':None,
+			'systemIP':router,
+		}
+
+	return routers, dOut
 
 def verifyCronTime(cronTime):
 	"""[We verify cronTime before moving on]
@@ -440,6 +481,7 @@ def verifyServers(jumpHostsFile):
 		quit()
 
 	fields = ['name','user','password','ip','port']
+
 	for k in servers.keys():
 		for f in fields:
 			if f in servers[k].keys():
@@ -535,7 +577,16 @@ def verifyConfigFile(config_file):
 
 	return -1,-1
 
-def verifyInventory(inventoryFile, jumpHostsFile):
+def verifyInventory(dictParam):
+
+	inventoryFile = dictParam['inventoryFile']
+	jumpHostsFile = dictParam['jumpHostsFile']
+	outputJob     = dictParam['outputJob']
+
+	if outputJob in [0,2]:
+		listOfRouters = dictParam['listOfRouters']
+	else:
+		listOfRouters = [x[0] for x in dictParam['listOfRouters']]
 
 	columns = ['ip','username','password','deviceType','useSSHTunnel','readTimeOut','jumpHost']
 
@@ -560,17 +611,19 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 
 	dOut   = {}
 
+	df2 = df2[df2.ip.isin(listOfRouters)]
+
 	for row in df2.itertuples():
 
 		ip       = row.ip
-		jh       = row.jumpHost
-		dt       = row.deviceType
-		tun      = row.useSSHTunnel
-		rto      = row.readTimeOut
-		username = row.username
-		password = row.password
+		jh       = row.jumpHost if row.jumpHost != '' else None
+		dt       = row.deviceType if row.deviceType != '' else dictParam['deviceType']
+		tun      = row.useSSHTunnel if row.useSSHTunnel != '' else dictParam['useSSHTunnel']
+		rto      = row.readTimeOut if row.readTimeOut != '' else dictParam['readTimeOut']
+		username = row.username if row.username != '' else dictParam['username']
+		password = row.password if row.password != '' else dictParam['password']
 
-		if tun not in ['yes','no','']:
+		if tun not in ['yes','no','',None]:
 			print(f'Inventory: The router {ip} is not using a valid sshTunnel option. For default, leave empty. Quitting...')
 			quit()
 		else:
@@ -578,13 +631,13 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 
 		if tun is True:
 
-			serversList = list(verifyServers(jumpHostsFile).keys()) + ['']
+			serversList = list(verifyServers(jumpHostsFile).keys())
 
-			if jh not in serversList:
+			if jh not in serversList+ ['',None]:
 				print(f'Inventory: The router {ip} is using sshtunnel and has not a valid jumpHost.\nIf empty, using default. Available servers inside the file {jumpHostsFile}: {str(serversList)}.\nQuitting...')
 				quit()
 
-		if dt not in list(DICT_VENDOR.keys()) + ['']:
+		if dt not in list(DICT_VENDOR.keys()) + ['',None]:
 			print(f'Inventory: The router {ip} is not using a valid deviceType. For default, leave empty. Quitting...')
 			quit()
 
@@ -602,6 +655,7 @@ def verifyInventory(inventoryFile, jumpHostsFile):
 			'useSSHTunnel':tun,
 			'readTimeOut':rto,
 			'jumpHost':jh,
+			'systemIP':ip,
 		}
 
 	return dOut
@@ -804,7 +858,7 @@ def renderCliLine(IPconnect, dictParam, i):
 		return aluCliLine
 ###
 
-def run_mi_thread(i, ip, dictParam, pluginScript=None, ftpLocalFilename=None, ftpRemoteFilename=None):
+def run_mi_thread(i, routerInfo, dictParam):
 	"""[summary]
 
 	Args:
@@ -815,7 +869,7 @@ def run_mi_thread(i, ip, dictParam, pluginScript=None, ftpLocalFilename=None, ft
 		ftpFileName
 	"""
 
-	aluLogReason = myConnection(i, ip, dictParam, pluginScript, ftpLocalFilename, ftpRemoteFilename).run()
+	aluLogReason = myConnection(i, routerInfo, dictParam).run()
 
 	return aluLogReason
 
@@ -824,10 +878,7 @@ class myConnection():
 	[Class for connection Object]
 	"""
 
-	def __init__(self, thrdNum, systemIP, dictParam, pluginScript=None, ftpLocalFilename=None, ftpRemoteFilename=None):
-
-		if pluginScript:
-			pluginScript = DICT_VENDOR[dictParam['deviceType']]['START_SCRIPT'] + DICT_VENDOR[dictParam['deviceType']]['FIRST_LINE'] + pluginScript + DICT_VENDOR[dictParam['deviceType']]['LAST_LINE'] + DICT_VENDOR[dictParam['deviceType']]['FIN_SCRIPT']
+	def __init__(self, thrdNum, routerInfo, dictParam):
 
 		self.outputJob 	      = dictParam['outputJob']
 		self.DIRECTORY_LOGS   = dictParam['DIRECTORY_LOGS']
@@ -839,14 +890,10 @@ class myConnection():
 
 		# local generated variables
 		self.connInfo = {
-			'systemIP':systemIP,
-			'useSSHTunnel':dictParam['useSSHTunnel'],
 			'localPort':-1,
 			'remotePort':-1,
 			'controlPlaneAccess': False,
 			'aluLogged': False,
-			'username':dictParam['username'],
-			'password':dictParam['password'],
 			'aluLogReason':"N/A",
 			'hostname':"N/A",
 			'timos':"N/A",
@@ -855,37 +902,33 @@ class myConnection():
 			'sshServer': None,
 			'conn2rtr': None,
 			'jumpHosts':dictParam['jumpHosts'],
-			'inventory':dictParam['inventory'],
-			'strictOrder':dictParam['strictOrder'],
 			'deviceType':dictParam['deviceType'],
 			'pluginType':dictParam['pluginType'],
 			'cmdVerify':dictParam['cmdVerify'],
-			'readTimeOut':dictParam['readTimeOut'],
 			'tDiff':0,
-			'runStatus':1,
+			'runStatus':-1, # revisar, solo una vez
 			'strConn': "Con-" + str(thrdNum) + "| ",
 			'num':thrdNum,
 			'outRx':'',
 			'outRxJson':{},
-			'ftpLocalFilename':ftpLocalFilename,
-			'ftpRemoteFilename':ftpRemoteFilename,
-			'pluginScript':pluginScript,
 			'cronScript':None,
 			'auxRetry':dictParam['auxRetry'],
 		}
+
+		self.connInfo.update(routerInfo)
+
+		# We update the outputjob relevant information...
+		if self.outputJob == 2:
+			self.connInfo['pluginScript'] = DICT_VENDOR[dictParam['deviceType']]['START_SCRIPT'] + DICT_VENDOR[dictParam['deviceType']]['FIRST_LINE'] + self.connInfo['pluginScript'][-1] + DICT_VENDOR[dictParam['deviceType']]['LAST_LINE'] + DICT_VENDOR[dictParam['deviceType']]['FIN_SCRIPT']
+		elif self.outputJob == 3:
+			self.connInfo['ftpLocalFilename']  = self.connInfo['ftpLocalFilename'][-1]
+			self.connInfo['ftpRemoteFilename'] = self.connInfo['ftpRemoteFilename'][-1]
 
 		# Do we you use jumpHosts?
 		if self.connInfo['useSSHTunnel'] is True or dictParam['inventoryFile'] != None:
 			self.connInfo['jumpHost'] = [x for i,x in enumerate(self.connInfo['jumpHosts']) if self.connInfo['num'] % len(self.connInfo['jumpHosts']) == i][0]
 		else:
 			self.connInfo['jumpHost'] = -1
-
-		# ### Update per router data with information from inventory
-		if dictParam['inventoryFile'] != None and self.connInfo['systemIP'] in dictParam['inventory'].keys():
-			self.tempDict = dictParam['inventory'][systemIP]
-			for key in self.tempDict.keys():
-				if self.tempDict[key] != '':
-					self.connInfo[key] = self.tempDict[key]
 
 		# SFTP Port
 		self.connInfo['sftpPort'] = DICT_VENDOR[self.connInfo['deviceType']]['SFTP_PORT']
@@ -963,11 +1006,15 @@ class myConnection():
 		pluginType         = connInfo['pluginType']
 		readTimeOut        = connInfo['readTimeOut']
 		cmdVerify          = connInfo['cmdVerify']
+		deviceType         = connInfo['deviceType']
 
 		expectString       = DICT_VENDOR[connInfo['deviceType']]['SEND_CMD_REGEX']
 
 		outputTxt  = ''
-		outputJson = {}		
+		outputJson = {}
+
+		mdDevice           = re.match('^md_',deviceType)
+		mdShow             = DICT_VENDOR[connInfo['deviceType']]['SHOW']
 
 
 		# ### Writes to a connection. 
@@ -986,14 +1033,24 @@ class myConnection():
 					runStatus    = -1						
 
 			elif pluginType == 'show':
-				
+
 				try:
+
 					for cmd in inText:
-						rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-						outputTxt = outputTxt + '\n' + cmd + '\n' + rx
-						outputJson[cmd] = rx
+						if not mdDevice:
+							rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+							outputTxt = outputTxt + '\n' + cmd + '\n' + rx
+							outputJson[cmd] = rx
+						else:
+							_        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+							rx       = conn2rtr.send_command(mdShow, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+							d = json.loads(rx)
+							outputJson[cmd] = d
+							outputTxt = outputTxt + '\n' + cmd + '\n' + rx					
+					
 					aluLogReason = ""
 					runStatus    = 1
+
 				except Exception as e:
 					outputTxt    = ''
 					aluLogReason = str(e).replace('\n',' ')
@@ -1277,7 +1334,11 @@ class myConnection():
 		index      = 0
 
 		systemIP   = connInfo['systemIP']
-		deviceType = connInfo['deviceType']	
+		deviceType = connInfo['deviceType']
+
+		# if we have a MD-CLI device, let's make sure netmiko
+		# does support it.
+		deviceType = re.sub('^md_','',deviceType)
 
 		if connInfo['useSSHTunnel'] is True:
 			ip   = IP_LOCALHOST
@@ -1364,13 +1425,13 @@ class myConnection():
 
 		# Filenames
 		if self.logFileName == 'hostname':
-			aluFileCommands  = DIRECTORY_LOGS + connInfo['hostname'] + "_commands.cfg"
-			aluFileOutRx	 = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.txt"
-			aluFileOutRxJson = DIRECTORY_LOGS + connInfo['hostname'] + "_rx.json"
+			logFname = 'hostname'
 		else:
-			aluFileCommands  = DIRECTORY_LOGS + connInfo['systemIP'] + "_commands.cfg"
-			aluFileOutRx	 = DIRECTORY_LOGS + connInfo['systemIP'] + "_rx.txt"
-			aluFileOutRxJson = DIRECTORY_LOGS + connInfo['systemIP'] + "_rx.json"			
+			logFname = 'systemIP'
+		
+		aluFileCommands  = DIRECTORY_LOGS + connInfo[logFname] + "_commands.cfg"
+		aluFileOutRx	 = DIRECTORY_LOGS + connInfo[logFname] + "_rx.txt"
+		aluFileOutRxJson = DIRECTORY_LOGS + connInfo[logFname] + "_rx.json"	
 
 		writeCmd  = 'n/a'
 		writeRx   = 'n/a'
@@ -1378,8 +1439,8 @@ class myConnection():
 
 		if self.outputJob == 2:
 			pluginScript = connInfo['pluginScript']
-			outRx     = connInfo['outRx']
-			outRxJson = connInfo['outRxJson']			
+			outRx        = connInfo['outRx']
+			outRxJson    = connInfo['outRxJson']			
 		else:
 			pluginScript = ''
 			outRx        = ''
@@ -1646,7 +1707,7 @@ def getDictParam():
 	connGroup.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
 	connGroup.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
 	connGroup.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
-	connGroup.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet'])
+	connGroup.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','md_nokia_sros','nokia_sros_telnet'])
 	connGroup.add_argument('-cv', '--cmdVerify',     type=str, help='Enable --cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
 	connGroup.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	connGroup.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait between routers, in miliseconds (ms), before sending scripts to the router. Default=0', default=0,)
@@ -1716,11 +1777,6 @@ def getDictParam():
 	# We verify the existence of DATA file
 	dictParam['data'] = verifyData(dictParam)
 
-	# Inventory
-	dictParam['inventory'] = {}
-	if dictParam['inventoryFile'] != None:
-		dictParam['inventory'] = verifyInventory(dictParam['inventoryFile'], dictParam['jumpHostsFile'])
-
 	# Plugin File
 	if dictParam['outputJob'] in [0,2]:
 		if dictParam['pyFile']:
@@ -1730,25 +1786,33 @@ def getDictParam():
 			print('Your jobType is ' + str(dictParam['outputJob']) + '. Need to specify a plugin.\nQuitting...')
 			quit()	
 	else:
-		dictParam['mod'] = None
+		dictParam['mod']         = None
 		dictParam['pyFileAlone'] = None
-		dictParam['pyFile'] = None
+		dictParam['pyFile']      = None
 		dictParam['pluginType']  = None
 
 		# If jobType = 3, the dataGroupColumn must always be 'ip'
 		dictParam['dataGroupColumn'] = 'ip'
 
+	# We check credentials
+	# here we obtain the global password to be used
+	# we store it in dictParam['password']
+	dictParam = checkCredentials(dictParam)	
+
 	# We obatin the list of routers to trigger connections
 	# if jobType = 3, it returns a tuple (ip,fileName)
-	dictParam['listOfRouters'] = getListOfRouters(dictParam)
+	# We generate the inventory with connections parameters for each router.
+	# These default parameters can be overriden with an inventory file.
+	dictParam['listOfRouters'], dictParam['inventory'] = getListOfRouters(dictParam)
+
+	# Inventory. We update the inventory with external file.
+	if dictParam['inventoryFile'] != None:
+		dictParam['inventory'].update(verifyInventory(dictParam))
 
 	# Check auxReytr
 	if dictParam['auxRetry'] < 1:
 		print('auxRetry must be greater than 0.\nQuitting...')
 		quit()	
-
-	# We check credentials
-	dictParam = checkCredentials(dictParam)	
 
 	return dictParam
 
@@ -1859,16 +1923,20 @@ def fncRun(dictParam):
 			# Depending on that, taskAutom will handle differently the data and
 			# the order of connections.
 
-			aluCliLine = renderCliLine(IPconnect, dictParam, i)
+			routerInfo = dictParam['inventory'][IPconnect]
+			try:
+				routerInfo['pluginScript'].append(renderCliLine(IPconnect, dictParam, i))
+			except:
+				routerInfo['pluginScript'] = [renderCliLine(IPconnect, dictParam, i)]
 
 			# Wait before sending scripts to the routers ...
 			waitBetweenRouters(dictParam)
 
 			# running routine
 			if dictParam['strictOrder'] is False:
-				threads_list.apply_async(run_mi_thread, args=(i, IPconnect, dictParam, aluCliLine))
+				threads_list.apply_async(run_mi_thread, args=(i, routerInfo, dictParam))
 			else:
-				aluLogReason = run_mi_thread(i, IPconnect, dictParam, aluCliLine)
+				aluLogReason = run_mi_thread(i, routerInfo, dictParam)
 
 				if dictParam['haltOnError'] is True and aluLogReason not in ['SendSuccess']:
 					dictParam['aluLogReason'] = aluLogReason
@@ -1886,14 +1954,21 @@ def fncRun(dictParam):
 
 		# logInfo
 		dictParam  = createLogFolder(dictParam)
-		aluCliLine = None
 
 		for i, (IPconnect,ftpLocalFilename,ftpRemoteFilename) in enumerate(listOfRouters):
+
+			routerInfo = dictParam['inventory'][IPconnect]
+			try:
+				routerInfo['ftpLocalFilename'].append(ftpLocalFilename)
+				routerInfo['ftpRemoteFilename'].append(ftpRemoteFilename)
+			except:
+				routerInfo['ftpLocalFilename']  = [ftpLocalFilename]
+				routerInfo['ftpRemoteFilename'] = [ftpRemoteFilename]
 
 			# Wait before sending scripts to the routers ...
 			waitBetweenRouters(dictParam)		
 
-			threads_list.apply_async(run_mi_thread, args=(i, IPconnect, dictParam, aluCliLine, ftpLocalFilename, ftpRemoteFilename))
+			threads_list.apply_async(run_mi_thread, args=(i, routerInfo, dictParam))
 
 		threads_list.close()
 		threads_list.join()
