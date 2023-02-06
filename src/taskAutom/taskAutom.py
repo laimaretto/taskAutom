@@ -40,41 +40,26 @@ from docx.shared import Pt
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
 # Variables Login
-IP_LOCALHOST          	 = "127.0.0.1"
+IP_LOCALHOST  = "127.0.0.1"
+LOG_GLOBAL    = []
+LOG_CONSOLE   = []
 
-ROUTER_TELNET_PORT       = 23
-ROUTER_SSH_PORT          = 22
-ROUTER_FTP_PORT          = 21
-
-# --- General Timers
-ALU_TIME_LOGIN           = 5
-SAM_TIME_LOGIN           = 10
-ALU_TIME_DIFF			 = 1
-PROMPT_TIMEOUT           = ALU_TIME_LOGIN
-
-# --- General Prompts
-ALU_PROMPT_CLOSED         = [b"closed by foreign host"]
-ALU_PROMPT_LOGOUT		  = [b"# logout"]
-ALU_PROMPT_FTP_LOGOUT     = [b"221 Bye!"]
-ALU_PROMPT_LOGIN          = [b"Login:"]
-ALU_PROMPT_FTP_LOGIN      = [b"220 FTP server ready"]
-ALU_PROMPT_FTP_BIN_MODE   = [b"binary mode"]
-ALU_PROMPT_FTP_TXFER      = [b"226 Transfer complete"]
-ALU_PROMPT_FTP            = [b"ftp>"]
-
-ALU_PROMPT_PASS           = [b"Password:"]
-ALU_PROMPT                = [b"(A:|B:)(.+)(>|#)"]
-
-ALU_TIMOS_LOGIN           = [b"(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})"]
-ALU_HOSTNAME              = [b"(A:|B:)(.+)(>|#)"]
-
-# --- Extras
-CH_CR					  = "\n"
-CH_COMA 				  = ","
-LOG_GLOBAL                = []
-LOG_CONSOLE               = []
-YES                       = 'yes'
-NO                        = 'no'
+DICT_PARAM    = dict(
+	outputJob        = None,
+	DIRECTORY_LOGS   = None,
+	ALU_FILE_OUT_CSV = None,
+	logInfo          = None,
+	logFileName      = None,
+	LOG_TIME         = None,
+	pyFile           = None,
+	cronTime         = dict(type=None),
+	jumpHosts        = dict(),
+	deviceType       = 'nokia_sros',
+	pluginType       = None,
+	cmdVerify        = True,
+	auxRetry         = 5,
+	inventoryFile    = None
+)
 
 # - Parameters per vendor
 DICT_VENDOR = dict(
@@ -997,8 +982,7 @@ class myConnection():
 		#                     #
 		#######################
 
-		#return self.connInfo['aluLogReason']
-		return self.connInfo['logs']
+		return self.connInfo
 
 	def fncWriteToConnection(self, inText, connInfo):
 
@@ -1428,10 +1412,6 @@ class myConnection():
 			logFname = 'hostname'
 		else:
 			logFname = 'systemIP'
-		
-		aluFileCommands  = DIRECTORY_LOGS + connInfo[logFname] + "_commands.cfg"
-		aluFileOutRx	 = DIRECTORY_LOGS + connInfo[logFname] + "_rx.txt"
-		aluFileOutRxJson = DIRECTORY_LOGS + connInfo[logFname] + "_rx.json"	
 
 		writeCmd  = 'n/a'
 		writeRx   = 'n/a'
@@ -1446,54 +1426,60 @@ class myConnection():
 			outRx        = ''
 			outRxJson    = {}
 
-		if self.outputJob == 2 and connInfo['aluLogged'] == True and connInfo['cronTime']['type'] is None:
+		if DIRECTORY_LOGS:
 
-			try:
-				with open(aluFileCommands,'a+') as fc:
-					fc.write(pluginScript)
-					fc.close()
-					writeCmd = 'yes'
-			except Exception as e:
-				fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
-				writeCmd = 'no'
+			aluFileCommands  = DIRECTORY_LOGS + connInfo[logFname] + "_commands.cfg"
+			aluFileOutRx	 = DIRECTORY_LOGS + connInfo[logFname] + "_rx.txt"
+			aluFileOutRxJson = DIRECTORY_LOGS + connInfo[logFname] + "_rx.json"	
 
-		if self.outputJob == 2 and connInfo['aluLogged'] == True:
+			if self.outputJob == 2 and connInfo['aluLogged'] == True and connInfo['cronTime']['type'] is None:
 
-			try:
-				with open(aluFileOutRx,'a+') as fw:
-					fw.write(outRx)
-					fw.close()
-					writeRx = 'yes'
-			except Exception as e:
-				fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
-				writeRx = 'no'
-
-		if self.outputJob == 2 and connInfo['aluLogged'] == True and connInfo['pluginType'] == 'show':
-
-			if not os.path.isfile(aluFileOutRxJson):
 				try:
-					with open(aluFileOutRxJson,'w') as fj:
-						outRxJson['name'] = connInfo['hostname']
-						outRxJson['ip']   = connInfo['systemIP']
-						json.dump(outRxJson,fj)
-						fj.close()
-						writeJson = 'yes'
-				except Exception as e:
-					fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))					
-					writeJson = 'no'
-			else:
-				try:
-					with open(aluFileOutRxJson) as fj:
-						data      = json.load(fj)
-						fj.close()
-					with open(aluFileOutRxJson,'w') as fj:
-						outRxJson = dict(list(outRxJson.items()) + list(data.items()))
-						json.dump(outRxJson,fj)
-						fj.close()
-					writeJson = 'yes'
+					with open(aluFileCommands,'a+') as fc:
+						fc.write(pluginScript)
+						fc.close()
+						writeCmd = 'yes'
 				except Exception as e:
 					fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
-					writeJson = 'no'
+					writeCmd = 'no'
+
+			if self.outputJob == 2 and connInfo['aluLogged'] == True:
+
+				try:
+					with open(aluFileOutRx,'a+') as fw:
+						fw.write(outRx)
+						fw.close()
+						writeRx = 'yes'
+				except Exception as e:
+					fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
+					writeRx = 'no'
+
+			if self.outputJob == 2 and connInfo['aluLogged'] == True and connInfo['pluginType'] == 'show':
+
+				if not os.path.isfile(aluFileOutRxJson):
+					try:
+						with open(aluFileOutRxJson,'w') as fj:
+							outRxJson['name'] = connInfo['hostname']
+							outRxJson['ip']   = connInfo['systemIP']
+							json.dump(outRxJson,fj)
+							fj.close()
+							writeJson = 'yes'
+					except Exception as e:
+						fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))					
+						writeJson = 'no'
+				else:
+					try:
+						with open(aluFileOutRxJson) as fj:
+							data      = json.load(fj)
+							fj.close()
+						with open(aluFileOutRxJson,'w') as fj:
+							outRxJson = dict(list(outRxJson.items()) + list(data.items()))
+							json.dump(outRxJson,fj)
+							fj.close()
+						writeJson = 'yes'
+					except Exception as e:
+						fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
+						writeJson = 'no'
 
 		if connInfo['useSSHTunnel'] is True:
 
@@ -1532,9 +1518,7 @@ class myConnection():
 			]
 
 		LOG_GLOBAL.append(aluCsvLine)
-
 		fncPrintConsole(connInfo['strConn'] + "logData: " + str(aluCsvLine))
-
 		connInfo['logs'] = aluCsvLine
 
 		return connInfo
