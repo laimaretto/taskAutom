@@ -39,19 +39,18 @@ from docx.shared import Pt
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
-# Variables Login
+# Constants
 IP_LOCALHOST  = "127.0.0.1"
 LOG_GLOBAL    = []
 LOG_CONSOLE   = []
-
 DICT_PARAM    = dict(
 	outputJob        = None,
-	DIRECTORY_LOGS   = None,
-	ALU_FILE_OUT_CSV = None,
+	logsDirectory    = None,
+	logsCsvFilename  = None,
 	logInfo          = None,
 	logFileName      = None,
-	LOG_TIME         = None,
-	pyFile           = None,
+	logsDirTimestamp = None,
+	pluginFilename   = None,
 	cronTime         = dict(type=None),
 	jumpHosts        = dict(),
 	pluginType       = None,
@@ -123,7 +122,7 @@ DICT_VENDOR = dict(
 
 ####
 
-def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO='', ALU_FILE_OUT_CSV=''):
+def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 
 	separator = "\n------ * ------"
 
@@ -135,17 +134,17 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 
 	outTxt = outTxt + "Global Parameters:\n"
 
-	outTxt = outTxt + "  Template File:              " + str(dictParam['pyFile']) + '\n'
+	outTxt = outTxt + "  Template File:              " + str(dictParam['pluginFilename']) + '\n'
 	if bool(dictParam['pluginType']):
 		outTxt = outTxt + "  Template Type:              " + str(dictParam['pluginType']) + '\n'
 	outTxt = outTxt + "  DATA File:                  " + str(dictParam['dataFile']) + '\n'
 	outTxt = outTxt + "  DATA UseHeader:             " + str(dictParam['useHeader']) + '\n'
 	outTxt = outTxt + "  Folder logInfo:             " + dictParam['logInfo'] + '\n'
 	outTxt = outTxt + "  Log FileName:               " + dictParam['logFileName'] + '\n'
-	outTxt = outTxt + "  Text File:                  " + dictParam['logInfo'] + "/job0_" + str(dictParam['pyFileAlone']) + ".txt" + '\n'
+	outTxt = outTxt + "  Text File:                  " + dictParam['logInfo'] + "/job0_" + str(dictParam['pluginFileAlone']) + ".txt" + '\n'
 
 	if dictParam['genMop'] is True:
-		outTxt = outTxt + "  MOP filename                " + dictParam['logInfo'] + "/job0_" + str(dictParam['pyFileAlone']) + ".docx\n"
+		outTxt = outTxt + "  MOP filename                " + dictParam['logInfo'] + "/job0_" + str(dictParam['pluginFileAlone']) + ".docx\n"
 
 	if bool(dictParam['inventoryFile']):
 		outTxt = outTxt + "  Inventory file              " + str(dictParam['inventoryFile']) + "\n"
@@ -206,7 +205,7 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 
 		df['threads']     = dictParam['progNumThreads']
 
-		df.to_csv(ALU_FILE_OUT_CSV,index=False)
+		df.to_csv(dictParam['logsCsvFilename'],index=False)
 
 		dfFailed = df[~df['Reason'].isin(['sftpOk','SendSuccess'])]
 
@@ -229,16 +228,16 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 
 		outTxt = outTxt + '\n' + dfGroup.to_string(max_colwidth=20) + '\n'
 
-		with open(DIRECTORY_LOG_INFO + '00_report.txt','w') as f:
+		with open(dictParam['logsDirectory'] + '00_report.txt','w') as f:
 			f.write(outTxt)
 			f.close()
 
-		with open(DIRECTORY_LOG_INFO + '00_log_console.txt','w') as f:
+		with open(dictParam['logsDirectory'] + '00_log_console.txt','w') as f:
 			for k in LOG_CONSOLE:
 				f.write(k+'\n')
 			f.close()
 
-		with open(DIRECTORY_LOG_INFO + '00_report.json', 'w') as f:
+		with open(dictParam['logsDirectory'] + '00_report.json', 'w') as f:
 			dictParam['password'] = '*****'
 			dictParam.pop('data')
 			dictParam.pop('mod')
@@ -514,22 +513,22 @@ def verifyData(dictParam):
 
 	return routers
 
-def verifyPlugin(pyFile):
+def verifyPlugin(pluginFilename):
 	"""[Verifies the plugin template]
 
 	Args:
-		pyFile ([str]): [Name of config template]
+		pluginFilename ([str]): [Name of config template]
 
 	Returns:
 		[module]: [The module]
 	"""
 
 	try:
-		if pyFile.split(".")[-1] == "py":
-			# if '/' in pyFile:
-			# 	pyFile = pyFile.replace('/','.')
-			print(pyFile)
-			spec = importlib.util.spec_from_file_location("construir_cliLine",pyFile)
+		if pluginFilename.split(".")[-1] == "py":
+			# if '/' in pluginFilename:
+			# 	pluginFilename = pluginFilename.replace('/','.')
+			print(pluginFilename)
+			spec = importlib.util.spec_from_file_location("construir_cliLine",pluginFilename)
 			mod  = importlib.util.module_from_spec(spec)
 			sys.modules["construir_cliLine"] = mod
 			spec.loader.exec_module(mod)
@@ -647,18 +646,18 @@ def renderMop(aluCliLineJob0, dictParam):
 
 	Args:
 		aluCliLineJob0 ([file]): [configLines]
-		pyFile ([str]):  [The plugin for this MOP]
+		pluginFilename ([str]):  [The plugin for this MOP]
 
 	Returns:
 		None
 	"""
 
-	# Verify if DIRECTORY_LOGS exists.
+	# Verify if logsDirectory exists.
 	if not os.path.exists(dictParam['logInfo']):
 		os.makedirs(dictParam['logInfo'])
 
-	job0docx = dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".docx"
-	job0text = dictParam['logInfo'] + "/job0_" + dictParam['pyFileAlone'] + ".txt"
+	job0docx = dictParam['logInfo'] + "/job0_" + dictParam['pluginFileAlone'] + ".docx"
+	job0text = dictParam['logInfo'] + "/job0_" + dictParam['pluginFileAlone'] + ".txt"
 
 	if dictParam['genMop'] is True:
 
@@ -679,7 +678,7 @@ def renderMop(aluCliLineJob0, dictParam):
 		#styleConsole.paragraph_format.line_spacing = .2
 		styleConsole.paragraph_format.space_after = Pt(2)
 
-		myDoc.add_heading('MOP for ' + dictParam['pyFile'], 0)
+		myDoc.add_heading('MOP for ' + dictParam['pluginFilename'], 0)
 
 		for i,row in enumerate(config):
 
@@ -743,16 +742,16 @@ def renderCliLine(IPconnect, dictParam, i):
 	#   9     10.3.0.50    ZONA_Y  0.0.1.3  0.0.1.3      ROUTER_J  TiMOS-B-7.0.R7    9886  4
 
 
-	aluCliLine  = ""
-	groupColumn = dictParam['dataGroupColumn']
-	jobType     = dictParam['outputJob'] 
-	strictOrder = dictParam['strictOrder']
-	useHeader   = dictParam['useHeader']
-	pyFile      = dictParam['pyFile']
-	dataFile    = dictParam['dataFile']
-	passByRow   = dictParam['passByRow']
-	mod         = dictParam['mod']
-	data        = dictParam['data']
+	aluCliLine     = ""
+	groupColumn    = dictParam['dataGroupColumn']
+	jobType        = dictParam['outputJob'] 
+	strictOrder    = dictParam['strictOrder']
+	useHeader      = dictParam['useHeader']
+	pluginFilename = dictParam['pluginFilename']
+	dataFile       = dictParam['dataFile']
+	passByRow      = dictParam['passByRow']
+	mod            = dictParam['mod']
+	data           = dictParam['data']
 
 	if jobType == 2:
 		mop = None
@@ -785,7 +784,7 @@ def renderCliLine(IPconnect, dictParam, i):
 				except Exception as e:
 					print('\nError: ' + str(e))
 					print('Row: ' + str(item))
-					print(f'Error trying to use plugin {pyFile}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
+					print(f'Error trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
 					quit()
 
 		else:
@@ -799,7 +798,7 @@ def renderCliLine(IPconnect, dictParam, i):
 				aluCliLine = aluCliLine + mod.construir_cliLine(i, pluginData, len(pluginData), mop)
 			except Exception as e:
 				print('\nError: ' + str(e))
-				print(f'Error trying to use plugin {pyFile}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
+				print(f'Error trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
 				quit()			
 
 	else:
@@ -816,7 +815,7 @@ def renderCliLine(IPconnect, dictParam, i):
 		except Exception as e:
 			print('\nError: ' + str(e))
 			print('Row: ' + str(pluginData))
-			print(f'Error trying to use plugin {pyFile}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
+			print(f'Error trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
 			quit()
 
 	try:
@@ -863,12 +862,12 @@ class myConnection():
 	def __init__(self, thrdNum, routerInfo, dictParam):
 
 		self.outputJob 	      = dictParam['outputJob']
-		self.DIRECTORY_LOGS   = dictParam['DIRECTORY_LOGS']
-		self.ALU_FILE_OUT_CSV = dictParam['ALU_FILE_OUT_CSV']
+		self.logsDirectory    = dictParam['logsDirectory']
+		self.logsCsvFilename  = dictParam['logsCsvFilename']
 		self.logInfo          = dictParam['logInfo']
 		self.logFileName      = dictParam['logFileName']
-		self.LOG_TIME         = dictParam['LOG_TIME']
-		self.plugin           = dictParam['pyFile']
+		self.logsDirTimestamp = dictParam['logsDirTimestamp']
+		self.plugin           = dictParam['pluginFilename']
 
 		# local generated variables
 		self.connInfo = {
@@ -968,7 +967,7 @@ class myConnection():
 
 			fncPrintConsole(self.connInfo['strConn'] + "End-of-run: " + str(self.connInfo['aluLogReason']))
 
-		self.connInfo = self.logData(self.connInfo, self.logInfo, self.LOG_TIME, self.plugin, self.DIRECTORY_LOGS)
+		self.connInfo = self.logData(self.connInfo, self.logInfo, self.logsDirTimestamp, self.plugin, self.logsDirectory)
 
 		#######################
 		# closing connections #
@@ -1164,7 +1163,7 @@ class myConnection():
 
 			datos      = connInfo['pluginScript']
 			fileRemote = connInfo['hostname'] + "_commands.cfg"
-			fileLocal  = self.DIRECTORY_LOGS + fileRemote
+			fileLocal  = self.logsDirectory + fileRemote
 
 			# We write here the contents of the data to be run inside the CRON
 			# We hence don't log it thereafter.
@@ -1405,7 +1404,7 @@ class myConnection():
 
 		return connInfo
 
-	def logData(self, connInfo, logInfo, LOG_TIME, plugin, DIRECTORY_LOGS):
+	def logData(self, connInfo, logInfo, logsDirTimestamp, plugin, logsDirectory):
 
 		# Filenames
 		if self.logFileName == 'hostname':
@@ -1426,11 +1425,11 @@ class myConnection():
 			outRx        = ''
 			outRxJson    = {}
 
-		if DIRECTORY_LOGS:
+		if logsDirectory:
 
-			aluFileCommands  = DIRECTORY_LOGS + connInfo[logFname] + "_commands.cfg"
-			aluFileOutRx	 = DIRECTORY_LOGS + connInfo[logFname] + "_rx.txt"
-			aluFileOutRxJson = DIRECTORY_LOGS + connInfo[logFname] + "_rx.json"	
+			aluFileCommands  = logsDirectory + connInfo[logFname] + "_commands.cfg"
+			aluFileOutRx	 = logsDirectory + connInfo[logFname] + "_rx.txt"
+			aluFileOutRxJson = logsDirectory + connInfo[logFname] + "_rx.json"	
 
 			if self.outputJob == 2 and connInfo['aluLogged'] == True and connInfo['cronTime']['type'] is None:
 
@@ -1492,7 +1491,7 @@ class myConnection():
 			lenServers = '-1'
 
 		aluCsvLine = [
-			LOG_TIME,
+			logsDirTimestamp,
 			logInfo,
 			plugin,
 			connInfo['pluginType'],
@@ -1648,20 +1647,20 @@ def waitBetweenRouters(dictParam):
 
 def createLogFolder(dictParam):
 
-	dictParam['LOG_TIME']         = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
+	dictParam['logsDirTimestamp'] = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
 	if dictParam['outputJob'] in [0,2]:
-		dictParam['DIRECTORY_LOGS']   = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_" + dictParam['pyFileAlone'] + "/"
+		dictParam['logsDirectory'] = os.getcwd() + "/logs_" + dictParam['logsDirTimestamp'] + "_" + dictParam['logInfo'] + "_" + dictParam['pluginFileAlone'] + "/"
 	else:
-		dictParam['DIRECTORY_LOGS']   = os.getcwd() + "/logs_" + dictParam['LOG_TIME'] + "_" + dictParam['logInfo'] + "_ftpUpload/"
-	dictParam['ALU_FILE_OUT_CSV'] = dictParam['DIRECTORY_LOGS'] + "00_log.csv"
+		dictParam['logsDirectory'] = os.getcwd() + "/logs_" + dictParam['logsDirTimestamp'] + "_" + dictParam['logInfo'] + "_ftpUpload/"
+	dictParam['logsCsvFilename'] = dictParam['logsDirectory'] + "00_log.csv"
 
-	# Verify if DIRECTORY_LOGS exists. If so, ask for different name ...
-	if os.path.exists(dictParam['DIRECTORY_LOGS']):
-		print("Folder " + dictParam['DIRECTORY_LOGS'] + " already exists.\nUse a different folder name.\nQuitting ...")
+	# Verify if logsDirectory exists. If so, ask for different name ...
+	if os.path.exists(dictParam['logsDirectory']):
+		print("Folder " + dictParam['logsDirectory'] + " already exists.\nUse a different folder name.\nQuitting ...")
 		quit()
 	else:
-		os.makedirs(dictParam['DIRECTORY_LOGS'])
-		open(dictParam['ALU_FILE_OUT_CSV'],'w').close()
+		os.makedirs(dictParam['logsDirectory'])
+		open(dictParam['logsCsvFilename'],'w').close()
 
 	return dictParam
 
@@ -1675,10 +1674,10 @@ def getDictParam():
 
 	groupPugin = parser.add_argument_group('Plugin')
 	groupPugin.add_argument('-pt' ,'--pluginType',    type=str, help='Type of plugin.', choices=['show','config'])
-	groupPugin.add_argument('-py' ,'--pyFile' ,       type=str, help='PY Template File. Optional if jobType=3.')
+	groupPugin.add_argument('-py' ,'--pluginFilename' , type=str, help='PY Template File. Optional if jobType=3.')
 
 	groupData = parser.add_argument_group('Data Related')
-	groupData.add_argument('-d'  ,'--dataFile',          type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
+	groupData.add_argument('-d'  ,'--dataFile',      type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
 	groupData.add_argument('-log','--logInfo' ,      type=str, required=True, help='Name of the log folder. Logs, MOP and scripts will be stored here.', )
 	groupData.add_argument('-fn','--logFileName' ,  type=str, help='Name of the log fileName, either "ip" or "hostname". Default=hostname', default='hostname', choices=['ip','hostname'] )
 	groupData.add_argument('-gc' ,'--dataGroupColumn',type=str, help='Only valid if using headers. Name of column, in the data file, to filter routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
@@ -1700,7 +1699,7 @@ def getDictParam():
 	connGroup.add_argument('-cv', '--cmdVerify',     type=str, help='Enable --cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
 	connGroup.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	connGroup.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait between routers, in miliseconds (ms), before sending scripts to the router. Default=0', default=0,)
-	connGroup.add_argument('-axr' ,'--auxRetry',     type=int, help='Times to try obtaining aux values. Default=5', default=5,)
+	connGroup.add_argument('-axr' ,'--auxRetry',     type=int, help='Times to try obtaining aux values before "not-match". Default=10', default=10,)
 
 
 	miscGroup = parser.add_argument_group('Misc')
@@ -1719,7 +1718,7 @@ def getDictParam():
 		xlsSheetName        = args.xlsSheetName,
 		useHeader           = True if args.useHeader == 'yes' else False,
 		passByRow           = True if args.passByRow  == 'yes' else False,
-		pyFile              = args.pyFile,
+		pluginFilename      = args.pluginFilename,
 		username 			= args.username,
 		passwordFile        = args.passwordFile,
 		password 			= None,
@@ -1768,17 +1767,17 @@ def getDictParam():
 
 	# Plugin File
 	if dictParam['outputJob'] in [0,2]:
-		if dictParam['pyFile']:
-			dictParam['pyFileAlone'] = dictParam['pyFile'].split('/')[-1]
-			dictParam['mod'] = verifyPlugin(dictParam['pyFile'])
+		if dictParam['pluginFilename']:
+			dictParam['pluginFileAlone'] = dictParam['pluginFilename'].split('/')[-1]
+			dictParam['mod'] = verifyPlugin(dictParam['pluginFilename'])
 		else:
 			print('Your jobType is ' + str(dictParam['outputJob']) + '. Need to specify a plugin.\nQuitting...')
 			quit()	
 	else:
-		dictParam['mod']         = None
-		dictParam['pyFileAlone'] = None
-		dictParam['pyFile']      = None
-		dictParam['pluginType']  = None
+		dictParam['mod']             = None
+		dictParam['pluginFileAlone'] = None
+		dictParam['pluginFilename']  = None
+		dictParam['pluginType']      = None
 
 		# If jobType = 3, the dataGroupColumn must always be 'ip'
 		dictParam['dataGroupColumn'] = 'ip'
@@ -1937,7 +1936,7 @@ def fncRun(dictParam):
 			threads_list.join()
 
 		print("all done")
-		fncPrintResults(listOfRouters, timeTotalStart, dictParam, dictParam['DIRECTORY_LOGS'], dictParam['ALU_FILE_OUT_CSV'])
+		fncPrintResults(listOfRouters, timeTotalStart, dictParam)
 
 	elif dictParam['outputJob'] == 3:
 
@@ -1963,13 +1962,13 @@ def fncRun(dictParam):
 		threads_list.join()
 
 		print("all done")
-		fncPrintResults(listOfRouters, timeTotalStart, dictParam, dictParam['DIRECTORY_LOGS'], dictParam['ALU_FILE_OUT_CSV'])		
+		fncPrintResults(listOfRouters, timeTotalStart, dictParam)
 
 	elif dictParam['outputJob'] == 0:
 
 		aluCliLineJob0 = ""
 
-		# Verify if DIRECTORY_LOGS exists.
+		# Verify if logsDirectory exists.
 		if not os.path.exists(dictParam['logInfo']):
 			os.makedirs(dictParam['logInfo'])		
 
