@@ -54,7 +54,6 @@ DICT_PARAM    = dict(
 	pyFile           = None,
 	cronTime         = dict(type=None),
 	jumpHosts        = dict(),
-	deviceType       = 'nokia_sros',
 	pluginType       = None,
 	cmdVerify        = True,
 	auxRetry         = 5,
@@ -193,9 +192,7 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam, DIRECTORY_LOG_INFO
 
 		outTxt = outTxt + separator + '\n'
 
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','HwType','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers','writeCmd','writeRx','writeJson']
-		df = pd.DataFrame(LOG_GLOBAL,columns=columns)
-		#df = pd.DataFrame(dictParam['aluLogReason'],columns=columns)
+		df = pd.concat(LOG_GLOBAL)
 
 		outTxt = outTxt + "\nTiming:\n"
 
@@ -887,7 +884,6 @@ class myConnection():
 			'sshServer': None,
 			'conn2rtr': None,
 			'jumpHosts':dictParam['jumpHosts'],
-			'deviceType':dictParam['deviceType'],
 			'pluginType':dictParam['pluginType'],
 			'cmdVerify':dictParam['cmdVerify'],
 			'tDiff':0,
@@ -904,7 +900,11 @@ class myConnection():
 
 		# We update the outputjob relevant information...
 		if self.outputJob == 2:
-			self.connInfo['pluginScript'] = DICT_VENDOR[dictParam['deviceType']]['START_SCRIPT'] + DICT_VENDOR[dictParam['deviceType']]['FIRST_LINE'] + self.connInfo['pluginScript'][-1] + DICT_VENDOR[dictParam['deviceType']]['LAST_LINE'] + DICT_VENDOR[dictParam['deviceType']]['FIN_SCRIPT']
+			self.connInfo['pluginScript'] = DICT_VENDOR[self.connInfo['deviceType']]['START_SCRIPT'] + \
+											DICT_VENDOR[self.connInfo['deviceType']]['FIRST_LINE'] + \
+											self.connInfo['pluginScript'][-1] + \
+											DICT_VENDOR[self.connInfo['deviceType']]['LAST_LINE'] + \
+											DICT_VENDOR[self.connInfo['deviceType']]['FIN_SCRIPT']
 		elif self.outputJob == 3:
 			self.connInfo['ftpLocalFilename']  = self.connInfo['ftpLocalFilename'][-1]
 			self.connInfo['ftpRemoteFilename'] = self.connInfo['ftpRemoteFilename'][-1]
@@ -1517,9 +1517,14 @@ class myConnection():
 			writeJson
 			]
 
-		LOG_GLOBAL.append(aluCsvLine)
+		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','HwType','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers','writeCmd','writeRx','writeJson']
+		df = pd.DataFrame([aluCsvLine],columns=columns)
+		
 		fncPrintConsole(connInfo['strConn'] + "logData: " + str(aluCsvLine))
-		connInfo['logs'] = aluCsvLine
+
+		LOG_GLOBAL.append(df)
+
+		connInfo['logs'] = df
 
 		return connInfo
 
