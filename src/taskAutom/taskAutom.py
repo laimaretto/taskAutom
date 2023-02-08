@@ -917,8 +917,7 @@ class myConnection():
 											DICT_VENDOR[self.connInfo['deviceType']]['FIN_SCRIPT']
 		elif self.outputJob == 3:
 			self.connInfo['ftpFiles'] = routerInfo['ftpFiles']
-			#self.connInfo['ftpLocalFilename']  = routerInfo['ftpFiles'][-1][0] 
-			#self.connInfo['ftpRemoteFilename'] = routerInfo['ftpFiles'][-1][1]
+			self.connInfo['ftpTotalTxFiles'] = 0
 
 		# Do we you use jumpHosts?
 		if self.connInfo['useSSHTunnel'] is True or dictParam['inventoryFile'] != None:
@@ -1170,9 +1169,9 @@ class myConnection():
 	def fncUploadFile(self, connInfo):
 		### upload configFile via SFTP
 
-		def setTransport(sftpPort):
+		def setTransport(ip, sftpPort):
 
-			transport = paramiko.Transport((IP_LOCALHOST,sftpPort))
+			transport = paramiko.Transport((ip,sftpPort))
 			transport.connect(None,connInfo['username'],connInfo['password'])
 
 			# The routers with timos above 6.X do support SFTP.
@@ -1189,7 +1188,7 @@ class myConnection():
 
 		def sendFiles(sftp,ftpFiles):
 
-			for fileLocal,fileRemote in ftpFiles:
+			for i, (fileLocal,fileRemote) in enumerate(ftpFiles):
 
 				fncPrintConsole(connInfo['strConn'] + "uploading file: " + fileLocal + "->" + fileRemote)
 
@@ -1201,9 +1200,11 @@ class myConnection():
 					print(str(e))
 					sftpStatus   = False
 					aluLogReason = str(e)
-					return sftpStatus, aluLogReason, fileRemote
+					return sftpStatus, aluLogReason, fileRemote, i
 
-			return sftpStatus, aluLogReason, fileRemote
+				i = i + 1
+
+			return sftpStatus, aluLogReason, fileRemote, i
 
 		if self.outputJob == 2:
 
@@ -1231,8 +1232,8 @@ class myConnection():
 			sftpPort      = sshSftp['localPort']
 			sshServerSftp = sshSftp['sshServer']
 
-			transport, sftp = setTransport(sftpPort)
-			sftpStatus, aluLogReason, fileRemote = sendFiles(sftp,ftpFiles)
+			transport, sftp = setTransport(IP_LOCALHOST, sftpPort)
+			sftpStatus, aluLogReason, fileRemote, i = sendFiles(sftp,ftpFiles)
 
 			sftp.close()
 			transport.close()
@@ -1240,17 +1241,17 @@ class myConnection():
 
 		else:
 
-			sftpPort      = connInfo['sftpPort']
-			transport, sftp = setTransport(sftpPort)
-
-			sftpStatus, aluLogReason, fileRemote = sendFiles(sftp,ftpFiles)
+			sftpPort = connInfo['sftpPort']
+			transport, sftp = setTransport(connInfo['systemIP'], sftpPort)
+			sftpStatus, aluLogReason, fileRemote, i = sendFiles(sftp,ftpFiles)
 
 			sftp.close()
 			transport.close()
 
-		connInfo['sftpStatus']    = sftpStatus
-		connInfo['aluLogReason']  = aluLogReason
-		connInfo['ftpRemoteFile'] = fileRemote
+		connInfo['sftpStatus']      = sftpStatus
+		connInfo['aluLogReason']    = aluLogReason
+		connInfo['ftpRemoteFile']   = fileRemote
+		connInfo['ftpTotalTxFiles'] = i
 
 		return connInfo
 
@@ -1422,12 +1423,6 @@ class myConnection():
 
 	def logData(self, connInfo, logInfo, logsDirTimestamp, plugin, logsDirectory):
 
-		# Filenames
-		if self.logFileName == 'hostname':
-			logFname = 'hostname'
-		else:
-			logFname = 'systemIP'
-
 		writeCmd  = 'n/a'
 		writeRx   = 'n/a'
 		writeJson = 'n/a'
@@ -1443,20 +1438,15 @@ class myConnection():
 
 		if logsDirectory:
 
+			# Filenames
+			if self.logFileName == 'hostname':
+				logFname = 'hostname'
+			else:
+				logFname = 'systemIP'			
+
 			aluFileCommands  = logsDirectory + connInfo[logFname] + "_commands.cfg"
 			aluFileOutRx	 = logsDirectory + connInfo[logFname] + "_rx.txt"
-			aluFileOutRxJson = logsDirectory + connInfo[logFname] + "_rx.json"	
-
-			if self.outputJob == 2 and connInfo['aluLogged'] == True and connInfo['cronTime']['type'] is None:
-
-				try:
-					with open(aluFileCommands,'a+') as fc:
-						fc.write(pluginScript)
-						fc.close()
-						writeCmd = 'yes'
-				except Exception as e:
-					fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
-					writeCmd = 'no'
+			aluFileOutRxJson = logsDirectory + connInfo[logFname] + "_rx.json"
 
 			if self.outputJob == 2 and connInfo['aluLogged'] == True:
 
@@ -1467,75 +1457,100 @@ class myConnection():
 						writeRx = 'yes'
 				except Exception as e:
 					fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
-					writeRx = 'no'
+					writeRx = 'no'			
 
-			if self.outputJob == 2 and connInfo['aluLogged'] == True and connInfo['pluginType'] == 'show':
+				if connInfo['cronTime']['type'] is None:
 
-				if not os.path.isfile(aluFileOutRxJson):
 					try:
-						with open(aluFileOutRxJson,'w') as fj:
-							outRxJson['name'] = connInfo['hostname']
-							outRxJson['ip']   = connInfo['systemIP']
-							json.dump(outRxJson,fj)
-							fj.close()
-							writeJson = 'yes'
-					except Exception as e:
-						fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))					
-						writeJson = 'no'
-				else:
-					try:
-						with open(aluFileOutRxJson) as fj:
-							data      = json.load(fj)
-							fj.close()
-						with open(aluFileOutRxJson,'w') as fj:
-							outRxJson = dict(list(outRxJson.items()) + list(data.items()))
-							json.dump(outRxJson,fj)
-							fj.close()
-						writeJson = 'yes'
+						with open(aluFileCommands,'a+') as fc:
+							fc.write(pluginScript)
+							fc.close()
+							writeCmd = 'yes'
 					except Exception as e:
 						fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
-						writeJson = 'no'
+						writeCmd = 'no'
+
+				if connInfo['pluginType'] == 'show':
+
+					if not os.path.isfile(aluFileOutRxJson):
+						try:
+							with open(aluFileOutRxJson,'w') as fj:
+								outRxJson['name'] = connInfo['hostname']
+								outRxJson['ip']   = connInfo['systemIP']
+								json.dump(outRxJson,fj)
+								fj.close()
+								writeJson = 'yes'
+						except Exception as e:
+							fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))					
+							writeJson = 'no'
+					else:
+						try:
+							with open(aluFileOutRxJson) as fj:
+								data      = json.load(fj)
+								fj.close()
+							with open(aluFileOutRxJson,'w') as fj:
+								outRxJson = dict(list(outRxJson.items()) + list(data.items()))
+								json.dump(outRxJson,fj)
+								fj.close()
+							writeJson = 'yes'
+						except Exception as e:
+							fncPrintConsole(connInfo['strConn'] + "logData: " + str(e))
+							writeJson = 'no'
 
 		if connInfo['useSSHTunnel'] is True:
-
 			serverName = connInfo['jumpHost']
 			lenServers = len(connInfo['jumpHosts'])
-
 		else:
-
 			serverName = '-1'
 			lenServers = '-1'
 
-		aluCsvLine = [
-			logsDirTimestamp,
-			logInfo,
-			plugin,
-			connInfo['pluginType'],
-			connInfo['cmdVerify'],
-			connInfo['systemIP'],
-			connInfo['timos'],
-			connInfo['hostname'],
-			connInfo['hwType'],
-			connInfo['username'],
-			connInfo['aluLogReason'],
-			str(connInfo['num']),
-			str(connInfo['localPort']),
-			serverName,
-			connInfo['deviceType'],
-			str(len(pluginScript.split('\n'))),
-			str(len(outRx.split('\n'))),
-			float(fncFormatTime(connInfo['tDiff'], adjust=False)),
-			str(connInfo['readTimeOut']),
-			str(lenServers),
-			writeCmd,
-			writeRx,
-			writeJson
-			]
+		# Building Logs ...
 
-		columns=['DateTime','logInfo','Plugin','pluginType','cmdVerify','IP','Timos','HostName','HwType','User','Reason','id','port','jumpHost','deviceType','txLines','rxLines','time','readTimeOut','servers','writeCmd','writeRx','writeJson']
-		df = pd.DataFrame([aluCsvLine],columns=columns)
+		logs = {
+				'DateTime':logsDirTimestamp,
+				'logInfo':logInfo,
+				'IP':connInfo['systemIP'],
+				'Timos':connInfo['timos'],
+				'HostName':connInfo['hostname'],
+				'HwType':connInfo['hwType'],
+				'User':connInfo['username'],
+				'Reason':connInfo['aluLogReason'],
+				'id':str(connInfo['num']),
+				'port':str(connInfo['localPort']),
+				'jumpHost':serverName,
+				'deviceType':connInfo['deviceType'],
+				'time':float(fncFormatTime(connInfo['tDiff'], adjust=False)),
+				'readTimeOut':str(connInfo['readTimeOut']),
+				'servers':str(lenServers),
+			}
+
+		if self.outputJob == 2:
+
+			logsJob2 = {
+				'Plugin':plugin,
+				'pluginType':connInfo['pluginType'],
+				'cmdVerify':connInfo['cmdVerify'],
+				'txLines':str(len(pluginScript.split('\n'))),
+				'rxLines':str(len(outRx.split('\n'))),	
+				'writeCmd':writeCmd,
+				'writeRx':writeRx,
+				'writeJson':writeJson,					
+			}
+
+			logs.update(logsJob2)
+
+		else:
+
+			logsJob3 = {
+				'TotFtpFiles':len(connInfo['ftpFiles']),
+				'TotTxFtpFiles':connInfo['ftpTotalTxFiles']
+			}
+
+			logs.update(logsJob3)			
+
+		df = pd.DataFrame([logs])
 		
-		fncPrintConsole(connInfo['strConn'] + "logData: " + str(aluCsvLine))
+		fncPrintConsole(connInfo['strConn'] + "logData: " + str(list(logs.values())))
 
 		LOG_GLOBAL.append(df)
 
@@ -1782,12 +1797,18 @@ def getDictParam():
 
 	# Plugin File
 	if dictParam['outputJob'] in [0,2]:
+
 		if dictParam['pluginFilename']:
 			dictParam['pluginFileAlone'] = dictParam['pluginFilename'].split('/')[-1]
 			dictParam['mod'] = verifyPlugin(dictParam['pluginFilename'])
 		else:
 			print('Your jobType is ' + str(dictParam['outputJob']) + '. Need to specify a plugin.\nQuitting...')
 			quit()	
+
+		if not dictParam['pluginType']:
+			print('Your jobType is ' + str(dictParam['outputJob']) + '. Need to specify a pluginType.\nQuitting...')
+			quit()
+
 	else:
 		dictParam['mod']             = None
 		dictParam['pluginFileAlone'] = None
@@ -1810,7 +1831,9 @@ def getDictParam():
 
 	# Inventory. We update the inventory with external file.
 	if dictParam['inventoryFile'] != None:
-		dictParam['inventory'].update(verifyInventory(dictParam))
+		dInv = verifyInventory(dictParam)
+		for key in dInv.keys():
+			dictParam['inventory'][key].update(dInv[key])
 
 	# Check auxReytr
 	if dictParam['auxRetry'] < 1:
@@ -1919,8 +1942,6 @@ def fncRun(dictParam):
 			routerInfo = dictParam['inventory'][IPconnect]
 			routerInfo['pluginScript'].append(renderCliLine(IPconnect, dictParam, i))
 
-			print(routerInfo)
-
 			# Wait before sending scripts to the routers ...
 			waitBetweenRouters(dictParam)
 
@@ -1949,8 +1970,6 @@ def fncRun(dictParam):
 		listOfRouters = list(dictParam['inventory'].keys())
 
 		for i, IPconnect in enumerate(listOfRouters):
-
-			#print(IPconnect,ftpLocalFilename,ftpRemoteFilename)
 
 			routerInfo = dictParam['inventory'][IPconnect]		
 
