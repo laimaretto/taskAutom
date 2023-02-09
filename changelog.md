@@ -1,5 +1,23 @@
 # Versions #
 
+## [7.19.1] - 2023-02-09
+
+- Better inventory file checkinng.
+- The class `myConnection` now receives fewer arguments, namely dictonaries `routerInfo` and `dictParam`.
+    - `routerInfo` holds all the necesary arguments to establish the connection towards the router, ie, username and password. But also, now, the `pluginScript` which is the script to be executed on the router.
+    - `dictParam` holds all the global parameters such as log folder name, logTime, dataFileName, pluginName, sshServers, etc.
+    - This change follows this idea: even if an inventory is defined, the `pluginScript` is created before being sent over to the class by the combination of the `dataFilename` and the `pluginFilename`. The idea here is that in the near future, the inventory could establish per-router plugins and/or data files. So in one run of taskAutom, different routers will be executing different scripts.
+- The method `fncUploadFile()` has been modified so that jobTypes 2 and 3 have better control over the sent files via SCP/SFTP.
+- The method `logData()` is better now. Log data is a pandas DataFrame being built from a dictionary, which varies depending on the jobType. The function `fncPrintResults()` now performs a `pd.concat(LOG_GLOBAL)`.
+- The function `getListOfRouters()` no longer provides, only, a list of routers, but also a list of dictionaries which conform the real inventory. The `key` in that dictionary is the IP of each and every router with a predefined set of subkeys: username, password, deviceType, useSSHTunnel, readtimeout, jumphost and systemIP.
+    - If the the jobType is 2, an extra subkey `pluginScript` will be added. If jobType 3, a list of tuples with `[(locaFile,remoteFile)]` will be added. These are the files to be uploaded via SCP/SFTP.
+    - If there is an external inventroy file, ie `-inv inv.csv`, the `dictParam['inventory']` will be updated with the information contained inside `inv.csv`.
+- The function `verifyInventory()`  has been modified to return a dictionary which is compatible with the one required by the function `getListOfRouters()`.
+- New global dictionary `DICT_PARAM` which can be used when using taskAutom as an import inside a python code.
+- Basic MD-CLI support under Nokia, when using `deviceType = md_nokia_sros`.
+
+    
+
 ## [7.18.3] - 2023-02-02
 
 - Better inventory file checking.
