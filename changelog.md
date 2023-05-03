@@ -1,5 +1,11 @@
 # Versions #
 
+## [7.19.2] - 2023-05-03
+
+- Parameter `-j/--jobType` is now 0 by default.
+- Parameter `-pt/--pluginType` is now `show` by default.
+- The json report file now includes the version of taskAutom.
+
 ## [7.19.1] - 2023-02-09
 
 - Better inventory file checkinng.
