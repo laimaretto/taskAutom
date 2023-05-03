@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2015-2022 Lucas Aimaretto / laimaretto@gmail.com
+# Copyright (C) 2015-2023 Lucas Aimaretto / laimaretto@gmail.com
 #
 # This is taskAutom
 #
@@ -44,7 +44,7 @@ IP_LOCALHOST  = "127.0.0.1"
 LOG_GLOBAL    = []
 LOG_CONSOLE   = []
 DICT_PARAM    = dict(
-	outputJob        = None,
+	outputJob        = 0,
 	logsDirectory    = None,
 	logsCsvFilename  = None,
 	logInfo          = None,
@@ -53,9 +53,9 @@ DICT_PARAM    = dict(
 	pluginFilename   = None,
 	cronTime         = dict(type=None),
 	jumpHosts        = dict(),
-	pluginType       = None,
+	pluginType       = 'show',
 	cmdVerify        = True,
-	auxRetry         = 5,
+	auxRetry         = 10,
 	inventoryFile    = None
 )
 
@@ -238,6 +238,7 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 			f.close()
 
 		with open(dictParam['logsDirectory'] + '00_report.json', 'w') as f:
+			dictParam['version'] = '7.19.2'
 			dictParam['password'] = '*****'
 			dictParam.pop('data')
 			dictParam.pop('mod')
@@ -1698,13 +1699,13 @@ def createLogFolder(dictParam):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2023 - laimaretto@gmail.com - Version: 7.19.1' )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2023 - laimaretto@gmail.com - Version: 7.19.2' )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
-	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, required=True, choices=[0,2,3], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute. j=3, to upload files via SCP/SFTP.')
+	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, choices=[0,2,3], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute. j=3, to upload files via SCP/SFTP. Default=0')
 
 	groupPugin = parser.add_argument_group('Plugin')
-	groupPugin.add_argument('-pt' ,'--pluginType',      type=str, help='Type of plugin.', choices=['show','config'])
+	groupPugin.add_argument('-pt' ,'--pluginType',      type=str, help='Type of plugin.', default='show', choices=['show','config'])
 	groupPugin.add_argument('-py' ,'--pluginFilename' , type=str, help='PY Template File. Optional if jobType=3.')
 
 	groupData = parser.add_argument_group('Data Related')
@@ -1748,7 +1749,7 @@ def getDictParam():
 		dataFile           = args.dataFile,
 		xlsSheetName       = args.xlsSheetName,
 		useHeader          = True if args.useHeader == 'yes' else False,
-		passByRow          = True if args.passByRow  == 'yes' else False,
+		passByRow          = True if args.passByRow == 'yes' else False,
 		pluginFilename     = args.pluginFilename,
 		username 		   = args.username,
 		passwordFile       = args.passwordFile,
