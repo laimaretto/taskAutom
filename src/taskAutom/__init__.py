@@ -1,2 +1,2 @@
-__version__ = "7.19.2"
+__version__ = "7.19.3"
 __author__ = 'Lucas Aimaretto'

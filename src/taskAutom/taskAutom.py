@@ -39,6 +39,8 @@ from docx.shared import Pt
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
+LATEST_VERSION = '7.19.3'
+
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
 LOG_GLOBAL    = []
@@ -56,7 +58,20 @@ DICT_PARAM    = dict(
 	pluginType       = 'show',
 	cmdVerify        = True,
 	auxRetry         = 10,
-	inventoryFile    = None
+	inventoryFile    = None,
+	useSSHTunnel     = False,
+	useHeader        = True,
+	strictOrder      = False,
+	username         = None,
+	password         = None,
+	deviceType       = 'nokia_sros',
+	readTimeOut      = 10,
+	progNumThreads   = 1,
+	sshDebug         = False,
+	passByRow        = True,
+	genMop           = False,
+	dataGroupColumn  = 'ip',
+	version          = LATEST_VERSION
 )
 
 # - Parameters per vendor
@@ -238,7 +253,6 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 			f.close()
 
 		with open(dictParam['logsDirectory'] + '00_report.json', 'w') as f:
-			dictParam['version'] = '7.19.2'
 			dictParam['password'] = '*****'
 			dictParam.pop('data')
 			dictParam.pop('mod')
@@ -830,25 +844,34 @@ def renderCliLine(IPconnect, dictParam, i):
 			print(f'Error trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
 			quit()
 
-	try:
-		if len(aluCliLine) > 0:
-			if aluCliLine[-1] == "\n":
-				aluCliLine = aluCliLine[:-1]
-	except:
-		print(f'Error trying analyze the DATA file {dataFile}.\nVerify it and make sure that the table is consistent. Quitting...\n')
-		quit()		
+	return aluCliLine
 
-	if jobType == 2:	
 
-		if len(dictParam['cronTime']) == 0:
-			
-			pass
+def buildScripts(dictParam):
+	"""
+	This function builds scripts per router. This function must be used
+	when using taskAutom as a library (import)
 
-		return aluCliLine
+	Args:
+		dictParam
 
-	elif jobType == 0:
+	Returns:
+		_dict with results
+	"""
 
-		return aluCliLine
+	dictParam['data'] = verifyData(dictParam)
+	dictParam['mod']  = verifyPlugin(dictParam['pluginFilename'])
+	dictParam['pluginFileAlone'] = dictParam['pluginFilename'].split('/')[-1]
+	dictParam['listOfRouters'], _ = getListOfRouters(dictParam)
+
+	d = {}
+
+	for IPconnect in dictParam['listOfRouters']:
+		if IPconnect not in d.keys():
+			d[IPconnect] = {}
+		d[IPconnect][dictParam['pluginFileAlone']] = renderCliLine(IPconnect, dictParam, 1)
+
+	return d
 ###
 
 def run_mi_thread(i, routerInfo, dictParam):
@@ -1699,7 +1722,7 @@ def createLogFolder(dictParam):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2023 - laimaretto@gmail.com - Version: 7.19.2' )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2023 - laimaretto@gmail.com - Version: '+LATEST_VERSION )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
 	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, choices=[0,2,3], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute. j=3, to upload files via SCP/SFTP. Default=0')
@@ -1745,6 +1768,7 @@ def getDictParam():
 	### reading parameters
 
 	dictParam = dict(
+		version            = LATEST_VERSION,		
 		outputJob 		   = args.jobType,
 		dataFile           = args.dataFile,
 		xlsSheetName       = args.xlsSheetName,
