@@ -1,5 +1,16 @@
 # Versions #
 
+## [7.19.3] - 2023-05-05
+
+- The global dictionary `dictParam` has been updated with new default keywords.
+- New function `buildScripts(dictParam)`, which can be used when importing taskAutom:
+    - `from src.taskAutom import taskAutom as ta`.
+    - `dictParam['pluginFilename']  = 'myPlugin.py'`
+    - `dictParam['dataFile']        = 'myData.xlsx'`
+    - `dictParam['xlsSheetName']    = 'tabName'`
+    - `d = ta.buildScripts(dictParam)`
+    - This will allow to use the same plugins and data files when using taskAutom at the console, but within a python code.
+
 ## [7.19.2] - 2023-05-03
 
 - Parameter `-j/--jobType` is now 0 by default.
