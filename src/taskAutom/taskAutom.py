@@ -39,7 +39,7 @@ from docx.shared import Pt
 
 #logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
 
-LATEST_VERSION = '7.19.3'
+LATEST_VERSION = '7.19.4'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -742,7 +742,7 @@ def renderCliLine(IPconnect, dictParam, i):
 	- groupColumn: how data is filtered
 	- strictOrder: if we follow the order described inside the data file
 	- useHeader: do we pay attention the headers or use numerals instead?
-	- passByRow: do we pass to the module the complete date or only rowByRow? Only valid when strictOrder=no.
+	- passByRow: do we pass to the module the complete data or only rowByRow? Only valid when strictOrder=False.
 
 	Args:
 		IPconnect (_type_): IP of router (or eventually, the grouped data value)
@@ -799,23 +799,24 @@ def renderCliLine(IPconnect, dictParam, i):
 
 		if passByRow is True:
 
-			# since passByRow is yes, we pass the data to the module row by row
+			# since passByRow is True, we pass the data to the module row by row
 			# hence we apply in here the itertuples() for-loop, which is the default mode.
 			# The length of data is len(data)
 			# The row order is 'j'
 
-			for j, item in enumerate(pluginData.itertuples()):
+			for j, row in enumerate(pluginData.itertuples()):
 				try:
-					aluCliLine = aluCliLine + mod.construir_cliLine(j, item, len(pluginData), mop)
+					aluCliLine = aluCliLine + mod.construir_cliLine(j, row, len(pluginData), mop)
 				except Exception as e:
+					print(f'\nError trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}.')
 					print('\nError: ' + str(e))
-					print('Row: ' + str(item))
-					print(f'Error trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
-					quit()
+					print('Row: ' + str(row))		
+					print('Quitting...')
+					sys.exit(1)
 
 		else:
 
-			# since passByRow is no, we pass the complete.
+			# since passByRow is False, we pass the complete.
 			# the itertuples() for-loop, will be needed inside the plugin.
 			# this is only possible with strictMode == no.
 			# The length of data is len(data)
@@ -823,13 +824,13 @@ def renderCliLine(IPconnect, dictParam, i):
 			try:
 				aluCliLine = aluCliLine + mod.construir_cliLine(i, pluginData, len(pluginData), mop)
 			except Exception as e:
-				print('\nError: ' + str(e))
-				print(f'Error trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
-				quit()			
+				print(f'\nError trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data structure file, {dataFile}, looking for inconsistencies.')
+				print('\nError: ' + str(e))				
+				sys.exit(1)			
 
 	else:
 
-		# Since strictOrder = yes, then we pass to the module
+		# Since strictOrder = True, then we pass to the module
 		# all the data, row by row, by id i, which comes from 
 		# fncRun(). 
 		# Then the length of data is always 1.
@@ -839,10 +840,11 @@ def renderCliLine(IPconnect, dictParam, i):
 			pluginData = list(data.itertuples())[i]
 			aluCliLine = mod.construir_cliLine(0, pluginData, 1, mop)
 		except Exception as e:
+			print(f'\nError trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}.')
 			print('\nError: ' + str(e))
-			print('Row: ' + str(pluginData))
-			print(f'Error trying to use plugin {pluginFilename}.\nVerify variables inside of it, or the data file {dataFile}. Quitting...\n')
-			quit()
+			print('Row: ' + str(pluginData))			
+			print('Quitting...')
+			sys.exit(1)
 
 	return aluCliLine
 

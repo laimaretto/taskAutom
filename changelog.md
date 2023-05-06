@@ -1,5 +1,9 @@
 # Versions #
 
+## [7.19.4] - 2023-05-06
+
+- Update function `renderCliLine()`
+
 ## [7.19.3] - 2023-05-05
 
 - The global dictionary `dictParam` has been updated with new default keywords.
