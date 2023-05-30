@@ -1,5 +1,10 @@
 # Versions #
 
+## [8.0.1] - 2023-05-30
+
+- Using latest version of netmiko, 4.2.0
+- Update of the method `routerLogin()`, to use the new method from netmiko, `ConnLogOnly()`. If `sshDebug` is True, then a debug file will be created under `logsDirectory` with per-thread information.
+
 ## [7.19.4] - 2023-05-06
 
 - Update function `renderCliLine()`
