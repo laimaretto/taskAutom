@@ -28,6 +28,7 @@ import sys
 import sshtunnel
 import paramiko
 from netmiko import ConnectHandler
+from netmiko import ConnLogOnly
 from scp import SCPClient
 import pandas as pd
 import yaml
@@ -37,9 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-#logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s')
-
-LATEST_VERSION = '7.19.4'
+LATEST_VERSION = '8.0.1'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -292,7 +291,7 @@ def fncFormatTime(timeFloat, adjust=True):
 		return float(int(timeFloat*move))/move
 
 def fncPrintConsole(inText, show=1):
-	#logging.debug(inText)
+
 	localtime   = time.localtime()
 	if show:
 		output = str(time.strftime("%H:%M:%S", localtime)) + "| " + inText
@@ -930,6 +929,7 @@ class myConnection():
 			'outRxJson':{},
 			'cronScript':None,
 			'auxRetry':dictParam['auxRetry'],
+			'sshDebug':dictParam['sshDebug']
 		}
 
 		self.connInfo.update(routerInfo)
@@ -1380,7 +1380,12 @@ class myConnection():
 			index 	 = index + 1
 
 			try:
-				conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False)
+				#conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, session_log=debug) #, log_level="DEBUG")
+				if self.connInfo['sshDebug'] is True:
+					debug = self.logsDirectory + "debug.debug"
+					conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, log_file=debug, log_level="DEBUG",log_format='[%(levelname)s] %(name)s: [%(threadName)s] %(message)s')
+				else:
+					conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False)
 				aluLogged    = True
 				aluLogReason = "LoggedOk"
 				aluLogUser   = tempUser
@@ -1935,6 +1940,28 @@ def checkCredentials(dictParam):
 
 	return dictParam
 
+def enableLogging(dictParam):
+
+	## Netmiko Debug
+	if dictParam['sshDebug'] is True:
+		
+		debugFileName = dictParam['logsDirectory'] + 'debug.log'
+
+		logger        = logging.getLogger("netmiko")
+		logger.setLevel('DEBUG')
+		
+		handler = logging.FileHandler(debugFileName)
+		handler.setLevel(logging.DEBUG)
+		handler.setFormatter(logging.Formatter('[%(levelname)s] %(name)s: [%(threadName)s] %(message)s'))
+
+		logger.addHandler(handler)
+
+		#log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s [%(threadName)s] ") # I am printing thread id here
+		#logging.basicConfig(filename=debugFileName, level=logging.DEBUG)
+		
+
+	return None
+
 def fncRun(dictParam):
 	"""[summary]
 
@@ -1952,17 +1979,15 @@ def fncRun(dictParam):
 	# Generar threads
 	threads_list = ThreadPool(dictParam['progNumThreads'])
 
-	## Netmiko Debug
-	if dictParam['sshDebug'] is True:
-		logging.basicConfig(filename='debug.log', level=logging.DEBUG)
-		logger = logging.getLogger("netmiko")
-
 	################
 	# Running...
 	if dictParam['outputJob'] == 2:
 
 		# logInfo
 		dictParam = createLogFolder(dictParam)
+
+		# debug
+		enableLogging(dictParam)
 
 		for i, IPconnect in enumerate(listOfRouters):
 
@@ -1995,6 +2020,9 @@ def fncRun(dictParam):
 		# logInfo
 		dictParam     = createLogFolder(dictParam)
 		listOfRouters = list(dictParam['inventory'].keys())
+
+		# debug
+		enableLogging(dictParam)
 
 		for i, IPconnect in enumerate(listOfRouters):
 
