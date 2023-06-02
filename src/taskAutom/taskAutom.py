@@ -38,7 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.0.2'
+LATEST_VERSION = '8.0.3'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -940,7 +940,7 @@ class myConnection():
 											DICT_VENDOR[self.connInfo['deviceType']]['FIRST_LINE'] + \
 											routerInfo['pluginScript'][-1] + \
 											DICT_VENDOR[self.connInfo['deviceType']]['LAST_LINE'] + \
-											DICT_VENDOR[self.connInfo['deviceType']]['FIN_SCRIPT']	
+											DICT_VENDOR[self.connInfo['deviceType']]['FIN_SCRIPT']				
 		elif self.outputJob == 3:
 			self.connInfo['ftpFiles'] = routerInfo['ftpFiles']
 			self.connInfo['ftpTotalTxFiles'] = 0
@@ -1038,8 +1038,7 @@ class myConnection():
 
 
 		# ### Writes to a connection. 
-
-		if type(inText) == type([]):
+		if isinstance(inText,list):
 
 			if pluginType == 'config':
 
@@ -1075,7 +1074,7 @@ class myConnection():
 					aluLogReason = str(e).replace('\n',' ')
 					runStatus    = -1
 
-		elif type(inText) == type(''):
+		elif isinstance(inText,str):
 			
 			try:
 				outputTxt    = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
@@ -1434,16 +1433,19 @@ class myConnection():
 		## Analizing output only if writing to connection was successfull
 		if aluLogReason == "":
 			
+			# we verify correctness of execution ...
 			if any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in major_error_list]):
 				aluLogReason = "MajorFailed"
-			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in minor_error_list]):				
+			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in minor_error_list]):
 				aluLogReason = "MinorFailed"
 			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in info_error_list]):
 				aluLogReason = "InfoFailed"
-			elif not any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in fin_script]):
-				aluLogReason = 'Incomplete'
 			else:
 				aluLogReason = "SendSuccess"
+
+			# we verify completeness of execution ...
+			if not any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in fin_script]):
+				aluLogReason = aluLogReason + ':Incomplete'
 
 		fncPrintConsole(connInfo['strConn'] + "Time: " + fncFormatTime(tDiff) + ". Result: " + aluLogReason, show=1)
 

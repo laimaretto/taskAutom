@@ -1,5 +1,9 @@
 # Versions #
 
+## [8.0.3] - 2023-06-02
+
+- The method `routerRunRoutine()` will search for the string `#FINSCRIPT` after checking for correctness of execution (ie, `majorFailed`). If further the execution is incomplete, then the total result will be, following the example, labeled as `majorFailed:Incomplete`.
+
 ## [8.0.2] - 2023-06-02
 
 - The profile for the device type `nokia_sros` and `nokia_sros_telnet` include now as a last line, a `FIN_SCRIPT` string `#FINSCRIPT`. The idea is that the method `routerRunRoutine()` will check for that string. If not detected, taskAutom will assume that the execution of the script is incomplete, either because the command was not correctly sent over to the router; or because the output received from the router was cut somehow.
