@@ -38,7 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.0.1'
+LATEST_VERSION = '8.0.2'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -79,7 +79,7 @@ DICT_VENDOR = dict(
 		START_SCRIPT     = "", 
 		FIRST_LINE       = "/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "",
+		FIN_SCRIPT       = "#FINSCRIPT",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME         = "/show chassis | match Name", # no \n in the end
@@ -117,7 +117,7 @@ DICT_VENDOR = dict(
 		START_SCRIPT     = "", 
 		FIRST_LINE       = "\n/environment no more\n",
 		LAST_LINE        = "\nexit all\n",
-		FIN_SCRIPT       = "",
+		FIN_SCRIPT       = "#FINSCRIPT",
 		VERSION 	     = "show version", # no \n in the end
 		VERSION_REGEX    = "(TiMOS-[A-Z]-\d{1,2}.\d{1,2}.R\d{1,2})",
 		HOSTNAME         = "/show chassis | match Name", # no \n in the end
@@ -940,7 +940,7 @@ class myConnection():
 											DICT_VENDOR[self.connInfo['deviceType']]['FIRST_LINE'] + \
 											routerInfo['pluginScript'][-1] + \
 											DICT_VENDOR[self.connInfo['deviceType']]['LAST_LINE'] + \
-											DICT_VENDOR[self.connInfo['deviceType']]['FIN_SCRIPT']
+											DICT_VENDOR[self.connInfo['deviceType']]['FIN_SCRIPT']	
 		elif self.outputJob == 3:
 			self.connInfo['ftpFiles'] = routerInfo['ftpFiles']
 			self.connInfo['ftpTotalTxFiles'] = 0
@@ -1414,6 +1414,7 @@ class myConnection():
 		major_error_list = DICT_VENDOR[connInfo['deviceType']]['MAJOR_ERROR_LIST']
 		minor_error_list = DICT_VENDOR[connInfo['deviceType']]['MINOR_ERROR_LIST']
 		info_error_list  = DICT_VENDOR[connInfo['deviceType']]['INFO_ERROR_LIST']
+		fin_script       = [DICT_VENDOR[connInfo['deviceType']]['FIN_SCRIPT']]
 
 		if connInfo['cronTime']['type'] is not None:
 			datos = connInfo['cronScript']
@@ -1439,6 +1440,8 @@ class myConnection():
 				aluLogReason = "MinorFailed"
 			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in info_error_list]):
 				aluLogReason = "InfoFailed"
+			elif not any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in fin_script]):
+				aluLogReason = 'Incomplete'
 			else:
 				aluLogReason = "SendSuccess"
 
