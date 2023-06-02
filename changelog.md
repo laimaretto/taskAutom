@@ -1,5 +1,9 @@
 # Versions #
 
+## [8.0.2] - 2023-06-02
+
+- The profile for the device type `nokia_sros` and `nokia_sros_telnet` include now as a last line, a `FIN_SCRIPT` string `#FINSCRIPT`. The idea is that the method `routerRunRoutine()` will check for that string. If not detected, taskAutom will assume that the execution of the script is incomplete, either because the command was not correctly sent over to the router; or because the output received from the router was cut somehow.
+
 ## [8.0.1] - 2023-05-30
 
 - Using latest version of netmiko, 4.2.0
