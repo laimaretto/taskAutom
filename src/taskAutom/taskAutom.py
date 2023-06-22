@@ -38,7 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.0.3'
+LATEST_VERSION = '8.0.4'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -93,6 +93,7 @@ DICT_VENDOR = dict(
 		INFO_ERROR_LIST  = ["^INFO:.+"],
 		REMOTE_PORT      = 22,
 		SFTP_PORT        = 22,
+		SFTP_REGEX_CF    = r"(cf\d+:\/|cf\d+:)",
 	),
 	md_nokia_sros=dict(
 		START_SCRIPT     = "", 
@@ -112,6 +113,7 @@ DICT_VENDOR = dict(
 		INFO_ERROR_LIST  = ["^INFO:.+"],
 		REMOTE_PORT      = 22,
 		SFTP_PORT        = 22,
+		SFTP_REGEX_CF    = r"(cf\d+:\/|cf\d+:)",
 	),	
 	nokia_sros_telnet=dict(
 		START_SCRIPT     = "", 
@@ -131,6 +133,7 @@ DICT_VENDOR = dict(
 		INFO_ERROR_LIST  = ["^INFO:.+"],
 		REMOTE_PORT      = 23,
 		SFTP_PORT        = 22,
+		SFTP_REGEX_CF    = r"(cf\d+:\/|cf\d+:)",
 	),
 )
 
@@ -1198,15 +1201,18 @@ class myConnection():
 
 			transport = paramiko.Transport((ip,sftpPort))
 			transport.connect(None,connInfo['username'],connInfo['password'])
-
+			
 			# The routers with timos above 6.X do support SFTP.
 			# Otherwise we need to use SCP.
-
-			if connInfo['timosMajor'] > 6:
-				fncPrintConsole(connInfo['strConn'] + "uploading via SFTP: " + str(sftpPort))
-				sftp = paramiko.SFTPClient.from_transport(transport)
+			if connInfo['timosMajor'] != 'not-matched':
+				if connInfo['timosMajor'] > 6:
+					fncPrintConsole(connInfo['strConn'] + "uploading via SFTP: " + str(sftpPort))
+					sftp = paramiko.SFTPClient.from_transport(transport)
+				else:
+					fncPrintConsole(connInfo['strConn'] + "uploading via SCP: " + str(sftpPort))
+					sftp = SCPClient(transport)
 			else:
-				fncPrintConsole(connInfo['strConn'] + "uploading via SCP: " + str(sftpPort))
+				fncPrintConsole(connInfo['strConn'] + "TiMOS not-matched. Asuming SCP. Uploading via SCP: " + str(sftpPort))
 				sftp = SCPClient(transport)
 
 			return transport, sftp
@@ -1215,10 +1221,16 @@ class myConnection():
 
 			for i, (fileLocal,fileRemote) in enumerate(ftpFiles):
 
-				fncPrintConsole(connInfo['strConn'] + "uploading file: " + fileLocal + "->" + fileRemote)
+				match = re.match(DICT_VENDOR[connInfo['deviceType']]['SFTP_REGEX_CF'], fileRemote)
+
+				if not match:
+					fileRemote = "cf3:/" + fileRemote
+					fncPrintConsole(connInfo['strConn'] + "no CF specified; assuming cf3. Uploading file: " + fileLocal + "->" + fileRemote)
+				else:
+					fncPrintConsole(connInfo['strConn'] + "Uploading file: " + fileLocal + "->" + fileRemote)
 
 				try:
-					sftp.put(fileLocal,'cf3:/' + fileRemote)
+					sftp.put(fileLocal,fileRemote)
 					sftpStatus   = True
 					aluLogReason = 'sftpOk'
 				except Exception as e:
@@ -1265,7 +1277,6 @@ class myConnection():
 			sshServerSftp.stop()			
 
 		else:
-
 			sftpPort = connInfo['sftpPort']
 			transport, sftp = setTransport(connInfo['systemIP'], sftpPort)
 			sftpStatus, aluLogReason, fileRemote, i = sendFiles(sftp,ftpFiles)

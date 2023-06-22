@@ -1,5 +1,10 @@
 # Versions #
 
+## [8.0.4] - 2023-06-22
+
+- The method `fncUploadFile()` decides between SCP or SFTP depending on the Timos version. If taskAutom cannot detect the Timos version, SCP will be selected.
+- The method `fncUploadFile()` will assume `cf3:/` for the remote file, if no CF is specified in the `ftpRemoteFilename`.
+
 ## [8.0.3] - 2023-06-02
 
 - The method `routerRunRoutine()` will search for the string `#FINSCRIPT` after checking for correctness of execution (ie, `majorFailed`). If further the execution is incomplete, then the total result will be, following the example, labeled as `majorFailed:Incomplete`.
