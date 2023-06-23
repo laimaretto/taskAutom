@@ -38,7 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.0.4'
+LATEST_VERSION = '8.0.5'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -1015,7 +1015,7 @@ class myConnection():
 		if bool(self.connInfo['conn2rtr']) is True or self.connInfo['aluLogged'] is True:
 			self.connInfo['conn2rtr'].disconnect()
 
-		if self.connInfo['useSSHTunnel'] is True and bool(self.connInfo['sshServer']) == True:
+		if self.connInfo['useSSHTunnel'] is True and bool(self.connInfo['sshServer']) is True:
 			self.connInfo['sshServer'].stop(force=True)
 
 		#                     #
@@ -1294,9 +1294,9 @@ class myConnection():
 	def fncSshServer(self, connInfo, sftp=False):
 
 		controlPlaneAccess = False
-		localPort 		   = -1
-		server             = -1	
-		aluLogReason       = '-1'		
+		localPort 		   = None
+		server             = None
+		aluLogReason       = 'no-ssh-tunnel'		
 
 		jumpHost = connInfo['jumpHost']
 		servers  = connInfo['jumpHosts']
@@ -1324,37 +1324,45 @@ class myConnection():
 
 		except Exception as e:
 
-			aluLogReason = str(e).replace('\n',' ')
-			server = -1
+			aluLogReason = "Problems creating SSH server: " + str(e).replace('\n',' ')
 			fncPrintConsole(connInfo['strConn'] + str(aluLogReason))
 			server.stop(force=True)
+			controlPlaneAccess = False
+			localPort          = None
+			server             = None
 
-		if server != -1:
+		if server is not None:
 
 			try:
-
 				server.start()
 				localPort = server.local_bind_port
-
-				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))
-				fncPrintConsole(connInfo['strConn'] + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))				
-
-				server.check_tunnels()
-
-				if server.tunnel_is_up[('0.0.0.0',localPort)] == False:
-					aluLogReason = 'SSH Error: Tunnel is not up.'
-					fncPrintConsole(connInfo['strConn'] + aluLogReason)
-					controlPlaneAccess = False
-					server.stop(force=True)
-				else:
-					controlPlaneAccess = True
-
+				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))			
 			except Exception as e:
-				#fncPrintConsole(e)
-				aluLogReason = "Problems starting the SSH tunnel."
+				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))
+				aluLogReason = "Problems starting SSH server: " + str(e).replace('\n',' ')
 				fncPrintConsole(connInfo['strConn'] + aluLogReason)
-				controlPlaneAccess = False
 				server.stop(force=True)
+				controlPlaneAccess = False
+				localPort          = None
+				server             = None
+		
+		if server is not None:
+
+			fncPrintConsole(connInfo['strConn'] + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))				
+
+			server.check_tunnels()
+
+			if server.tunnel_is_up[('0.0.0.0',localPort)] is False:
+				aluLogReason = 'SSH Error: Tunnel is not up.'
+				fncPrintConsole(connInfo['strConn'] + aluLogReason)
+				server.stop(force=True)
+				controlPlaneAccess = False
+				localPort          = None
+				server             = None
+			else:
+				controlPlaneAccess = True
+
+
 
 		connInfo['aluLogReason']       = aluLogReason
 		connInfo['controlPlaneAccess'] = controlPlaneAccess

@@ -1,5 +1,9 @@
 # Versions #
 
+## [8.0.5] - 2023-06-22
+
+- The method `fncSshServer()` has been refactored. Better detection of problematic connections over ssh-tunnels.
+
 ## [8.0.4] - 2023-06-22
 
 - The method `fncUploadFile()` decides between SCP or SFTP depending on the Timos version. If taskAutom cannot detect the Timos version, SCP will be selected.
