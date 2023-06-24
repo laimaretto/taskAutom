@@ -1,5 +1,10 @@
 # Versions #
 
+## [8.0.6] - 2023-06-24
+
+- The function `fncPrintResults()` now created a new data file, `00_faildeDataFile`, which is a subset of the original data file. Thisincludes only the devices which have presented errors during exectuion.ssh-tunnels.
+- The function `checkCredentials()` has been refactored to better guide users when dealing with jobTypes.
+
 ## [8.0.5] - 2023-06-22
 
 - The method `fncSshServer()` has been refactored. Better detection of problematic connections over ssh-tunnels.

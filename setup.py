@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='taskAutom',
-    version='8.0.5',
+    version='8.0.6',
     description='A simple task automation tool',
     long_description='A simple task automation tool for NOKIA SROS based routers',
     long_description_content_type='text/x-rst',
