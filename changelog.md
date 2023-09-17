@@ -1,5 +1,12 @@
 # Versions #
 
+## [8.1.1] - 2023-09-17
+
+- Update to have taskAutom support access to SRLinux devices. A new device type `nokia_srl` has been included under the `DICT_VENDOR` general dictionary.
+- Netmiko, by default, disables pagination either by using `environment no more` or `environment more false`. The `FIRST_LINE=""` from now on for device type `nokia_sros`.
+    - The device_type `md_nokia_sros` has been removed from the `-dt` option.
+- `00_report.json` now includes timing information.
+
 ## [8.0.6] - 2023-06-24
 
 - The function `fncPrintResults()` now created a new data file, `00_faildeDataFile`, which is a subset of the original data file. Thisincludes only the devices which have presented errors during exectuion.ssh-tunnels.

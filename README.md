@@ -45,9 +45,10 @@ The program needs two mandatory inputs: a) DATA file and b) a plugin, which is n
 ### DATA file
 
 The DATA can be either a CSV file or an Excel file. In both cases you can define a header with column names, or not; it's optional.
-- If no header, the file must have in its first column (`_1`), the IP of the routers to which `taskAutom` will connect to.
-- If using header, there must be a column named `ip` with the IP addresses of the routers to which `taskAutom` will connect to.
-    - You can chose a differnt column name by using the configuration option `-gc/--dataGroupColumn myColName`.
+- If no headers, the file must have in its first column (`_1`), the IP of the routers to which `taskAutom` will connect to.
+    - Using a data file without headers is discouraged. It will be deprecated. It's only here for historical reasons.
+- If using headers, there must be a column named `ip` with the IP addresses of the routers to which `taskAutom` will connect to.
+    - You can chose a different column name by using the configuration option `-gc/--dataGroupColumn myColName`.
 
 The first column `_1` or the `ip` column (or eventually changed by `-gc`) allows `taskAutom` to group routers by that column when processing data. This is particularly useful if you have the same router along several rows in the DATA file.
 
@@ -95,7 +96,7 @@ def construir_cliLine(m, datos, lenData, mop=None):
     if m == lenData-1:
         cfg = cfg + f'/configure router interface {intName} no shutdown\n'
 
-	return cfg
+    return cfg
 ```
 
 #### Notes on plugin
@@ -114,6 +115,7 @@ ip|username|password|useSSHTunnel|readTimeOut|deviceType|jumpHost|
 --|--------|--------|------------|----------|--------|---------
 10.0.0.1|user1|pass1|yes|15|nokia_sros|server1|1000
 10.0.0.2|user2|pass2|no|90|nokia_sros_telnet|
+10.0.0.3|user3|pass3|no|90|nokia_srl|
 
 If fieds in the inventory CSV file are left empty, default values are used.
 
