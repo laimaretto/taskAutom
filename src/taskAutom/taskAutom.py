@@ -38,7 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.0.6'
+LATEST_VERSION = '8.1.1'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -70,14 +70,15 @@ DICT_PARAM    = dict(
 	passByRow        = True,
 	genMop           = False,
 	dataGroupColumn  = 'ip',
-	version          = LATEST_VERSION
+	version          = LATEST_VERSION,
+	xlsSheetName     = None,
 )
 
 # - Parameters per vendor
 DICT_VENDOR = dict(
 	nokia_sros=dict(
 		START_SCRIPT     = "", 
-		FIRST_LINE       = "/environment no more\n",
+		FIRST_LINE       = "",
 		LAST_LINE        = "\nexit all\n",
 		FIN_SCRIPT       = "#FINSCRIPT",
 		VERSION 	     = "show version", # no \n in the end
@@ -135,6 +136,26 @@ DICT_VENDOR = dict(
 		SFTP_PORT        = 22,
 		SFTP_REGEX_CF    = r"(cf\d+:\/|cf\d+:)",
 	),
+	nokia_srl=dict(
+		START_SCRIPT     = "", 
+		FIRST_LINE       = "",
+		LAST_LINE        = "",
+		FIN_SCRIPT       = "",
+		VERSION 	     = "show version", # no \n in the end
+		VERSION_REGEX    = "(v\d+.\d+.\d+)",
+		HOSTNAME         = "show version", # no \n in the end
+		HOSTNAME_REGEX   = "Hostname\s+:\s(\S+)",
+		HW_TYPE          = "show version", # no \n in the end
+		HW_TYPE_REGEX    = "Chassis Type\s+:\s(.+)",
+		SHOW             = "",
+		SEND_CMD_REGEX   = None,
+		MAJOR_ERROR_LIST = ["^FAILED:.+","^ERROR:.+","^Error:.+","invalid token","not allowed"],
+		MINOR_ERROR_LIST = ["^MINOR:.+"],
+		INFO_ERROR_LIST  = ["^INFO:.+"],
+		REMOTE_PORT      = 22,
+		SFTP_PORT        = 22,
+		SFTP_REGEX_CF    = r"(cf\d+:\/|cf\d+:)",
+	),		
 )
 
 ####
@@ -204,19 +225,22 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 	if dictParam['outputJob'] > 0:
 
 		timeTotalEnd 	= time.time()
-		timeTotal 		= timeTotalEnd - timeTotalStart		
 
 		outTxt += f"{separator}\n"
 
 		df = pd.concat(LOG_GLOBAL)
 
+		timeTotal 		= fncFormatTime(timeTotalEnd - timeTotalStart)
+		timeMin         = fncFormatTime(df["time"].min())
+		timeAvg         = fncFormatTime(df["time"].mean())
+		timeMax         = fncFormatTime(df["time"].max())
+
 		outTxt += f"\nTiming:\n"
 
-		outTxt += f'  timeMin                     {fncFormatTime(df["time"].min())}\n'
-		outTxt += f'  timeAvg:                    {fncFormatTime(df["time"].mean())}\n'
-		outTxt += f'  timeMax:                    {fncFormatTime(df["time"].max())}\n'
-		outTxt += f'  timeTotal:                  {fncFormatTime(timeTotal)}\n'
-		outTxt += f'  timeTotal/totalRouters:     {fncFormatTime(timeTotal/len(LOG_GLOBAL))}\n'
+		outTxt += f'  timeMin                     {timeMin}\n'
+		outTxt += f'  timeAvg:                    {timeAvg}\n'
+		outTxt += f'  timeMax:                    {timeMax}\n'
+		outTxt += f'  timeTotal:                  {timeTotal}\n'
 
 		outTxt += f"{separator}\n"
 
@@ -267,6 +291,11 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 			if len(dictParam['inventory']) > 0:
 				for ip in dictParam['inventory']:
 					dictParam['inventory'][ip]['password'] = '*****'
+			dictParam['timing'] = {}
+			dictParam['timing']['min'] = timeMin
+			dictParam['timing']['avg'] = timeAvg
+			dictParam['timing']['max'] = timeMax
+			dictParam['timing']['total'] = timeTotal
 			json.dump(dictParam, f)
 			f.close()
 
@@ -528,7 +557,7 @@ def verifyData(dictParam):
 	else:
 		useHeader = None
 
-	if dictParam['xlsSheetName'] == None:
+	if dictParam['xlsSheetName'] is None:
 	
 		# We have CSV
 		try:
@@ -1786,7 +1815,7 @@ def getDictParam():
 	connGroup.add_argument('-th' ,'--threads' ,      type=int, help='Number of threads. Default=1', default=1,)
 	connGroup.add_argument('-tun','--sshTunnel',     type=str, help='Use SSH Tunnel to routers. Default=yes', default='yes', choices=['no','yes'])
 	connGroup.add_argument('-jh' ,'--jumpHostsFile', type=str, help='jumpHosts file. Default=servers.yml', default='servers.yml')
-	connGroup.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','md_nokia_sros','nokia_sros_telnet'])
+	connGroup.add_argument('-dt', '--deviceType',    type=str, help='Device Type. Default=nokia_sros', default='nokia_sros', choices=['nokia_sros','nokia_sros_telnet','nokia_srl'])
 	connGroup.add_argument('-cv', '--cmdVerify',     type=str, help='Enable --cmdVerify when interacting with router. Disable only if connection problems. Default=yes', default='yes', choices=['no','yes'])
 	connGroup.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	connGroup.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait between routers, in miliseconds (ms), before sending scripts to the router. Default=0', default=0,)
