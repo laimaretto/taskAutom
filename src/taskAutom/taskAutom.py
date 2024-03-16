@@ -38,7 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.1.1'
+LATEST_VERSION = '8.2.1'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -952,10 +952,10 @@ class myConnection():
 			'remotePort':-1,
 			'controlPlaneAccess': False,
 			'aluLogged': False,
-			'aluLogReason':"N/A",
-			'hostname':"N/A",
-			'timos':"N/A",
-			'hwType':"N/A",
+			'aluLogReason':"NA",
+			'hostname':"NA_" + str(thrdNum),
+			'timos':"NA",
+			'hwType':"NA",
 			'cronTime':dictParam['cronTime'],
 			'sshServer': None,
 			'conn2rtr': None,
@@ -1227,8 +1227,8 @@ class myConnection():
 
 			connInfo['conn2rtr']     = None
 			connInfo['aluLogged'] 	 = False
-			connInfo['username']     = "N/A"
-			connInfo['password']     = "N/A"
+			connInfo['username']     = "NA"
+			connInfo['password']     = "NA"
 
 		return connInfo
 
@@ -1447,7 +1447,7 @@ class myConnection():
 				aluLogged 	 = False
 				aluLogReason = str(e).replace('\n',' ').lstrip()
 				aluLogUser   = tempUser
-				aluPass      = "PassN/A"
+				aluPass      = "PassNA"
 				fncPrintConsole(connInfo['strConn'] + aluLogReason + ": " + systemIP)
 
 		connInfo['conn2rtr']     = conn2rtr
@@ -1512,9 +1512,9 @@ class myConnection():
 
 	def logData(self, connInfo, logInfo, logsDirTimestamp, plugin, logsDirectory):
 
-		writeCmd  = 'n/a'
-		writeRx   = 'n/a'
-		writeJson = 'n/a'
+		writeCmd  = 'na'
+		writeRx   = 'na'
+		writeJson = 'na'
 
 		if self.outputJob == 2:
 			pluginScript = connInfo['pluginScript']
@@ -1566,6 +1566,7 @@ class myConnection():
 							with open(aluFileOutRxJson,'w') as fj:
 								outRxJson['name'] = connInfo['hostname']
 								outRxJson['ip']   = connInfo['systemIP']
+								outRxJson['version'] = connInfo['timos']
 								json.dump(outRxJson,fj)
 								fj.close()
 								writeJson = 'yes'

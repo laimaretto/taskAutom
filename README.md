@@ -36,6 +36,8 @@ srvr1:
     port: 22    
 ```
 
+When using a jumpHost, taskAutom will create a standard ssh-based tunnel (ie: TCP-port-forwarding) to the far-end, which is the router.
+
 ---
 
 ## Bulk Script Execution on routers ##
@@ -44,25 +46,24 @@ The program needs two mandatory inputs: a) DATA file and b) a plugin, which is n
 
 ### DATA file
 
-The DATA can be either a CSV file or an Excel file. In both cases you can define a header with column names, or not; it's optional.
-- If no headers, the file must have in its first column (`_1`), the IP of the routers to which `taskAutom` will connect to.
-    - Using a data file without headers is discouraged. It will be deprecated. It's only here for historical reasons.
-- If using headers, there must be a column named `ip` with the IP addresses of the routers to which `taskAutom` will connect to.
-    - You can chose a different column name by using the configuration option `-gc/--dataGroupColumn myColName`.
+The DATA can be either a CSV file or an Excel file. There must be a column named `ip` with the IP addresses of the routers to which `taskAutom` will connect to. The name of this column can be changed using the configuration option `-gc/--dataGroupColumn myColName`.
 
-The first column `_1` or the `ip` column (or eventually changed by `-gc`) allows `taskAutom` to group routers by that column when processing data. This is particularly useful if you have the same router along several rows in the DATA file.
+The `ip` column (or eventually changed by `-gc`) allows `taskAutom` to group routers by that column when processing data. This is particularly useful if you have the same router along several rows in the DATA file.
 
-If you want `taskAutom` not to group routers by the `[ip|_1]` column, you should use the `-so/--strictOrder yes` CLI parameter: this will process the routers' data in the order of the DATA file as is.
+If you want `taskAutom` not to group routers by the `ip` column, you should use the `-so/--strictOrder=yes` CLI parameter: this will process the routers' data in the order of the DATA file as is.
 
 The next columns in the DATA file, are the variables that will be used in the configuration template.
 
-**Example:** this is a CSV for two different routers, including the data to modify their interfaces. A header is being used in this case.
+**Example:** this is a CSV for two different routers, including the data to modify their interfaces.
 
 ```csv
 ip,name,port,interName,ipAddress
 10.0.0.1,router1,1/1/1,inter1,192.168.0.1/30
 10.0.0.2,router2,1/3/5,inter7,192.168.2.1/30
 ```
+
+#### Notes on the data file
+There are cases where it is needed to send the complete dataFrame to the plugin. In those cases, you can do so by issuing the CLI parameter `-pbr/--passByRow=no`. When doing so, taskAutom will send the whole set of rows selected by the IP of the router, to the plugin. By deafult, `-pbr/--passByRow=yes`.
 
 ### Plugin
 
@@ -109,7 +110,7 @@ def construir_cliLine(m, datos, lenData, mop=None):
 
 ### Inventory
 
-By default, `taskAutom` connects to each and every router that exists inside the DATA data file. Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
+By default, `taskAutom` connects to each and every router that exists inside the DATA data file (identifying the routers by the `ip` column). Optionally, an inventory file can be provided, with per router connection parameters. If so, the default connection values are overridden by those inside the inventory file.
 
 ip|username|password|useSSHTunnel|readTimeOut|deviceType|jumpHost|
 --|--------|--------|------------|----------|--------|---------
@@ -119,9 +120,11 @@ ip|username|password|useSSHTunnel|readTimeOut|deviceType|jumpHost|
 
 If fieds in the inventory CSV file are left empty, default values are used.
 
-### MOP
+### MOP: Method of Procedure
 
-When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title. You do so be adding a prefix `Heading_2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using the prefix `Heading_3`.
+When writing a plugin, is important to help `taskAutom` understand which string should be considered as a title if you intend to generate a Word document out of the combination of the data file and the plugin.
+
+You do so be adding a prefix `Heading_2` to the `tiltle` variable, under the `if mop:` statement. After this, a MOP is created with the intended information. There is also the possibility of using the prefix `Heading_3`.
 
 
 ### Result
