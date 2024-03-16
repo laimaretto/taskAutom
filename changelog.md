@@ -1,5 +1,13 @@
 # Versions #
 
+## [8.2.1] - 2024-03-16
+
+- Update of libraries:
+    - `pandas  >= 1.5.2,<=2.0.3`
+    - `netmiko == 4.3.0`
+- The Timos version is now added to the json file per router as a new key.
+- The default hostname is now `NA_#`, where # is the threadnumber. This changes if the hostname is detected later on.
+
 ## [8.1.1] - 2023-09-17
 
 - Update to have taskAutom support access to SRLinux devices. A new device type `nokia_srl` has been included under the `DICT_VENDOR` general dictionary.
