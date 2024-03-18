@@ -1,5 +1,9 @@
 # Versions #
 
+## [8.2.2] - 2024-03-18
+
+- The HwType is now added to the json file per router as a new key.
+
 ## [8.2.1] - 2024-03-16
 
 - Update of libraries:

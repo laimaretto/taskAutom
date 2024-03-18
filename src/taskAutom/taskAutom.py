@@ -38,7 +38,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.2.1'
+LATEST_VERSION = '8.2.2'
 
 # Constants
 IP_LOCALHOST  = "127.0.0.1"
@@ -1564,9 +1564,10 @@ class myConnection():
 					if not os.path.isfile(aluFileOutRxJson):
 						try:
 							with open(aluFileOutRxJson,'w') as fj:
-								outRxJson['name'] = connInfo['hostname']
-								outRxJson['ip']   = connInfo['systemIP']
+								outRxJson['name']    = connInfo['hostname']
+								outRxJson['ip']      = connInfo['systemIP']
 								outRxJson['version'] = connInfo['timos']
+								outRxJson['hwType']  = connInfo['hwType']
 								json.dump(outRxJson,fj)
 								fj.close()
 								writeJson = 'yes'
