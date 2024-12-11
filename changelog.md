@@ -1,5 +1,11 @@
 # Versions #
 
+## [8.2.3] - 2024-12-11
+- Getting the Python version, operating system and the library versions. Saving to `00_reports.json` file
+- Update `README.md`
+- Create img/ and uploading images for `README.md`
+- Updating License
+
 ## [8.2.2] - 2024-03-18
 
 - The HwType is now added to the json file per router as a new key.
