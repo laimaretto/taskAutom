@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2015-2023 Lucas Aimaretto / laimaretto@gmail.com
+# Copyright (C) 2022-2025 Lucas Aimaretto / laimaretto@gmail.com, Beatriz Bonafe / bonafencb@gmail.com
+# Copyright (C) 2015-2021 Lucas Aimaretto / laimaretto@gmail.com
 #
 # This is taskAutom
 #
@@ -38,9 +39,10 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.2.2'
+LATEST_VERSION = '8.2.3'
 
 # Constants
+LIBS          = ['sshtunnel', 'netmiko', 'pandas', 'pyyaml', 'python-docx']
 IP_LOCALHOST  = "127.0.0.1"
 LOG_GLOBAL    = []
 LOG_CONSOLE   = []
@@ -296,6 +298,10 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 			dictParam['timing']['avg'] = timeAvg
 			dictParam['timing']['max'] = timeMax
 			dictParam['timing']['total'] = timeTotal
+			dictParam['system'] = {}
+			dictParam['system']['pythonVersion'] = sys.version
+			dictParam['system']['platform'] = sys.platform
+			dictParam['system']['libVersion'] = {lib: importlib.import_module('importlib.metadata').version(lib) for lib in LIBS}
 			json.dump(dictParam, f)
 			f.close()
 
@@ -1789,7 +1795,7 @@ def createLogFolder(dictParam):
 def getDictParam():
 
 	parser = argparse.ArgumentParser(description='taskAutom Parameters.', prog='taskAutom', usage='%(prog)s [options]')
-	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='Lucas Aimaretto - (c)2023 - laimaretto@gmail.com - Version: '+LATEST_VERSION )
+	parser.add_argument('-v'  ,'--version',     help='Version', action='version', version='(c) 2025 - Version: '+LATEST_VERSION )
 
 	groupJobTypes = parser.add_argument_group('JobTypes')
 	groupJobTypes.add_argument('-j'  ,'--jobType',       type=int, choices=[0,2,3], default=0, help='Type of job. j=0 to check data and plugin; j=2, to execute. j=3, to upload files via SCP/SFTP. When j=3, password must be entered manually. Default=0')
