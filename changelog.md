@@ -1,5 +1,21 @@
 # Versions #
 
+## [8.3.0] - 2025-01-23
+
+- Update of libraries:
+    - `sshtunnel==0.4.0`
+    - `netmiko==4.5.0`
+    - `pandas>=1.5.2,<=2.0.3`
+    - `pyyaml==6.0.2`
+    - `python-docx==0.8.11`
+- The following functions have be cleaned-up/reordered:
+    - `fncWriteToConnection(self, inText, connInfo)`: this function now applies try/except per each sent command to the router. If ok, among others, returns `SendingOk`.
+    - `_getData(inText,connInfo)`: if it receives a `SendingOk`, breaks.
+    - `fncSshServer(self, connInfo, sftp=False)`: better code, avoiding unnecesary try/excepts.
+    - `routerLogin(self, connInfo)`: better code, avoiding unnecesary try/excepts. Also, if a router cannot be logged-in, returns `CannotLog` (before it would return `LoggedOk` even if it was not true).
+    - `routerRunRoutine(self, connInfo)`: an unused paramater `runStatus` has been removed
+
+
 ## [8.2.3] - 2024-12-11
 - Getting the Python version, operating system and the library versions. Saving to `00_reports.json` file
 - Update `README.md`
