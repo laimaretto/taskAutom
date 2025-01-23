@@ -39,7 +39,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.2.3'
+LATEST_VERSION = '8.3.0'
 
 # Constants
 LIBS          = ['sshtunnel', 'netmiko', 'pandas', 'pyyaml', 'python-docx']
@@ -218,7 +218,7 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 		outTxt += f"  Use SSH tunnel:             {str(dictParam['useSSHTunnel'])}\n"
 	
 	outTxt += f"  Total Threads:              {str(dictParam['progNumThreads'])}\n"
-	outTxt += f"  Read Timeout:               {str(dictParam['readTimeOut'])}\n"
+	outTxt += f"  Read Timeout:               {str(dictParam['readTimeOut'])}s\n"
 	outTxt += f"  Time Between Routers:       {str(dictParam['timeBetweenRouters'])}ms\n"
 	outTxt += f"  Username:                   {str(dictParam['username'])}\n"
 	outTxt += f"  Password Filename:          {str(dictParam['passwordFile'])}\n"
@@ -969,7 +969,6 @@ class myConnection():
 			'pluginType':dictParam['pluginType'],
 			'cmdVerify':dictParam['cmdVerify'],
 			'tDiff':0,
-			'runStatus':-1, # revisar, solo una vez
 			'strConn': "Con-" + str(thrdNum) + "| ",
 			'num':thrdNum,
 			'outRx':'',
@@ -1051,6 +1050,7 @@ class myConnection():
 
 			fncPrintConsole(self.connInfo['strConn'] + "End-of-run: " + str(self.connInfo['aluLogReason']))
 
+		## Logging time ...
 		self.connInfo = self.logData(self.connInfo, self.logInfo, self.logsDirTimestamp, self.plugin, self.logsDirectory)
 
 		#######################
@@ -1077,62 +1077,73 @@ class myConnection():
 
 		expectString       = DICT_VENDOR[connInfo['deviceType']]['SEND_CMD_REGEX']
 
-		outputTxt  = ''
-		outputJson = {}
-
 		mdDevice           = re.match('^md_',deviceType)
 		mdShow             = DICT_VENDOR[connInfo['deviceType']]['SHOW']
 
+		# returns
+		aluLogReason = "SendingCommand"
+		outputTxt    = ''
+		outputJson   = {}
 
-		# ### Writes to a connection. 
-		if isinstance(inText,list):
+		if bool(conn2rtr) is True:
 
-			if pluginType == 'config':
+			# ### Writes to a connection. 
+			if isinstance(inText,list):
 
-				try:
-					outputTxt    = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-					aluLogReason = ""
-					runStatus    = 1
-				except Exception as e:
-					aluLogReason = str(e).replace('\n',' ').lstrip()
-					runStatus    = -1						
+				if pluginType == 'config':
 
-			elif pluginType == 'show':
+					try:
+						outputTxt    = conn2rtr.send_config_set(config_commands=inText, enter_config_mode=False, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						aluLogReason = "SendingOk"
+					except Exception as e:
+						aluLogReason = str(e).replace('\n',' ').lstrip()
 
-				try:
+				elif pluginType == 'show':
 
 					for cmd in inText:
+						#
+						# This code is important to be reviewed in the near future when jsons are expected as output
+						#
+						# if not mdDevice:
+						# 	rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						# 	outputTxt = outputTxt + '\n' + cmd + '\n' + rx
+						# 	outputJson[cmd] = rx
+						# else:
+						# 	_        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						# 	rx       = conn2rtr.send_command(mdShow, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+						# 	d = json.loads(rx)
+						# 	outputJson[cmd] = d
+						# 	outputTxt = outputTxt + '\n' + cmd + '\n' + rx
+
 						if not mdDevice:
-							rx        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-							outputTxt = outputTxt + '\n' + cmd + '\n' + rx
-							outputJson[cmd] = rx
-						else:
-							_        = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-							rx       = conn2rtr.send_command(mdShow, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-							d = json.loads(rx)
-							outputJson[cmd] = d
-							outputTxt = outputTxt + '\n' + cmd + '\n' + rx				
-					
-					aluLogReason = ""
-					runStatus    = 1
+							try:
+								rx   = conn2rtr.send_command(cmd, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+								send = True
+							except:
+								send = False
 
+							if send is True:
+								outputTxt = outputTxt + '\n' + cmd + '\n' + rx
+								outputJson[cmd] = rx
+							else:					
+								outputTxt = outputTxt + '\n' + cmd + '\SendingWrong\n'
+								outputJson[cmd] = 'SendingWrong'			
+				
+					aluLogReason = "SendingOk"
+
+			elif isinstance(inText,str):
+				
+				try:
+					outputTxt    = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
+					aluLogReason = "SendingOk"
 				except Exception as e:
-					outputTxt = outputTxt + '\n' + cmd + '\n' + rx
+					outputTxt    = ''
 					aluLogReason = str(e).replace('\n',' ').lstrip()
-					runStatus    = -1
 
-		elif isinstance(inText,str):
-			
-			try:
-				outputTxt    = conn2rtr.send_command(inText, expect_string=expectString, cmd_verify=cmdVerify, read_timeout=readTimeOut)
-				aluLogReason = ""
-				runStatus    = 1					
-			except Exception as e:
-				outputTxt    = ''
-				aluLogReason = str(e).replace('\n',' ').lstrip()
-				runStatus    = -1
+		else:
+			pass
 
-		return runStatus, aluLogReason, outputTxt, outputJson
+		return aluLogReason, outputTxt, outputJson
 
 	def fncAuxGetVal(self, connInfo, what):
 
@@ -1141,10 +1152,9 @@ class myConnection():
 			auxRetry = connInfo['auxRetry']
 
 			for i in range(auxRetry):
-				runStatus, aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
-				if runStatus == 1:
+				aluLogReason, rx, _ = self.fncWriteToConnection(inText, connInfo)
+				if aluLogReason == "SendingOk":
 					break
-
 			return rx
 
 		if what == "timos":
@@ -1358,51 +1368,59 @@ class myConnection():
 		systemIP = connInfo['systemIP']
 		fncPrintConsole(connInfo['strConn'] + "Trying sshServer on IP: " + str(tempIp))
 		
-		try:
-			server = sshtunnel.SSHTunnelForwarder( 	(tempIp, tempPort), 
-												ssh_username = tempUser, 
-												ssh_password = tempPass, 
-												remote_bind_address = (systemIP, remotePort),
-												allow_agent = False,
+		server = sshtunnel.SSHTunnelForwarder(
+											(tempIp, tempPort), 
+											ssh_username = tempUser, 
+											ssh_password = tempPass, 
+											remote_bind_address = (systemIP, remotePort),
+											allow_agent = False,
 											)
-		except Exception as e:
-			aluLogReason = "Problems creating SSH server: " + str(e).replace('\n',' ').lstrip()
+
+		if bool(server) is False:
+
+			aluLogReason = "Problems creating SSH server"
 			fncPrintConsole(connInfo['strConn'] + str(aluLogReason))
 			server.stop(force=True)
 			controlPlaneAccess = False
 			localPort          = None
 			server             = None
 
-		if server is not None:
+		else:
 
 			try:
 				server.start()
-				localPort = server.local_bind_port
-				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))		
+				sshOk = True
 			except Exception as e:
-				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))
-				aluLogReason = "Problems starting SSH server: " + str(e).replace('\n',' ').lstrip()
-				fncPrintConsole(connInfo['strConn'] + aluLogReason)
-				server.stop(force=True)
-				controlPlaneAccess = False
-				localPort          = None
-				server             = None
-		
-		if server is not None:
+				sshError = str(e)
+				sshOk    = False
 
-			fncPrintConsole(connInfo['strConn'] + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))				
-
-			server.check_tunnels()
-
-			if server.tunnel_is_up[('0.0.0.0',localPort)] is False:
-				aluLogReason = 'SSH Error: Tunnel is not up.'
-				fncPrintConsole(connInfo['strConn'] + aluLogReason)
-				server.stop(force=True)
-				controlPlaneAccess = False
-				localPort          = None
-				server             = None
-			else:
+			if sshOk is True:
+				localPort          = server.local_bind_port
 				controlPlaneAccess = True
+				aluLogReason       = "SSH Up"
+				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))
+				fncPrintConsole(connInfo['strConn'] + "Trying router " + IP_LOCALHOST + ":" + str(localPort) + " -> " + connInfo['systemIP'] + ":" + str(connInfo['remotePort']))
+			else:
+				fncPrintConsole(connInfo['strConn'] + "Trying sshServerTunnel on port: " + str(localPort))
+				aluLogReason = "Problems starting SSH server: " + str(sshError).replace('\n',' ').lstrip()
+				fncPrintConsole(connInfo['strConn'] + aluLogReason)
+				server.stop(force=True)
+				controlPlaneAccess = False
+				localPort          = None
+				server             = None
+
+		#
+		### REVIEW if tunnel_is_ip() is useful somehow.
+		#
+		# 	if server.tunnel_is_up[('0.0.0.0',localPort)] is False:
+		# 		aluLogReason = 'SSH Error: Tunnel is not up.'
+		# 		fncPrintConsole(connInfo['strConn'] + aluLogReason)
+		# 		server.stop(force=True)
+		# 		controlPlaneAccess = False
+		# 		localPort          = None
+		# 		server             = None
+		# 	else:
+		# 		controlPlaneAccess = True
 
 		connInfo['aluLogReason']       = aluLogReason
 		connInfo['controlPlaneAccess'] = controlPlaneAccess
@@ -1437,24 +1455,24 @@ class myConnection():
 			tempPass = self.ROUTER_USER[index][1]
 			index 	 = index + 1
 
-			try:
-				#conn2rtr = ConnectHandler(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, session_log=debug) #, log_level="DEBUG")
-				if self.connInfo['sshDebug'] is True:
-					debug = self.logsDirectory + "debug.debug"
-					conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, log_file=debug, log_level="DEBUG",log_format='[%(levelname)s] %(name)s: [%(threadName)s] %(message)s')
-				else:
-					conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False)
+			if self.connInfo['sshDebug'] is True:
+				debug = self.logsDirectory + "debug.debug"
+				conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, log_file=debug, log_level="DEBUG",log_format='[%(levelname)s] %(name)s: [%(threadName)s] %(message)s')
+			else:
+				conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False)
+
+			if bool(conn2rtr) is True:
 				aluLogged    = True
 				aluLogReason = "LoggedOk"
 				aluLogUser   = tempUser
-				aluPass      = tempPass
-			except Exception as e:
+				aluPass      = tempPass			
+			else:
 				conn2rtr     = None
 				aluLogged 	 = False
-				aluLogReason = str(e).replace('\n',' ').lstrip()
+				aluLogReason = "CannotLog"
 				aluLogUser   = tempUser
 				aluPass      = "PassNA"
-				fncPrintConsole(connInfo['strConn'] + aluLogReason + ": " + systemIP)
+				fncPrintConsole(connInfo['strConn'] + aluLogReason + ": " + systemIP)			
 
 		connInfo['conn2rtr']     = conn2rtr
 		connInfo['aluLogged']    = aluLogged
@@ -1482,7 +1500,7 @@ class myConnection():
 			fncPrintConsole(connInfo['strConn'] + "Running script per line...", show=1)
 
 		datos = datos.split('\n')
-		runStatus, aluLogReason, outRx, outRxJson = self.fncWriteToConnection(datos, connInfo)
+		aluLogReason, outRx, outRxJson = self.fncWriteToConnection(datos, connInfo)
 
 		aluLogReason = aluLogReason.replace('\n',' ').lstrip()
 
@@ -1490,7 +1508,7 @@ class myConnection():
 		tDiff = tEnd - tStart
 
 		## Analizing output only if writing to connection was successfull
-		if aluLogReason == "":
+		if aluLogReason == "SendingOk":
 			
 			# we verify correctness of execution ...
 			if any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in major_error_list]):
@@ -1499,6 +1517,8 @@ class myConnection():
 				aluLogReason = "MinorFailed"
 			elif any([re.compile(error, flags=re.MULTILINE).search(outRx) for error in info_error_list]):
 				aluLogReason = "InfoFailed"
+			elif "SendingWrong" in outRx:
+				aluLogReason = "SendingWrong"
 			else:
 				aluLogReason = "SendSuccess"
 
@@ -1509,7 +1529,6 @@ class myConnection():
 		fncPrintConsole(connInfo['strConn'] + "Time: " + fncFormatTime(tDiff) + ". Result: " + aluLogReason, show=1)
 
 		connInfo['aluLogReason'] = aluLogReason
-		connInfo['runStatus']    = runStatus
 		connInfo['tDiff']        = tDiff
 		connInfo['outRx']        = outRx
 		connInfo['outRxJson']    = outRxJson
