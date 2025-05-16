@@ -1,2 +1,2 @@
-__version__ = "8.2.3"
+__version__ = "8.3.0"
 __author__ = 'Lucas Aimaretto, Beatriz Bonafe'
