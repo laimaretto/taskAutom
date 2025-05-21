@@ -99,6 +99,7 @@ More information in [python plugin section](#python-plugin).
 | ----------| ----------- |
 | `-d` / `--dataFile` | Data file with parameters. Either `.csv` or `.xlsx`. If `.xlsx`, enable the `-xls` option with sheet name.|
 | `-log` / `--logInfo` | Name of the log folder. Logs, MOP and scripts will be stored here. |
+| `-lt` / `--logTime` | Create the log folder with a timestamp in its name.  **Choices: yes, no. Default=yes** |
 | `-fn` / `--logFileName` | Name of the log fileName. **Choices: ip, hostname. Default=hostname** |
 | `-uh` / `--useHeader` | When reading data, consider first row as header. **Choices: yes, no. Default=yes** |
 | `-gc` / `--dataGroupColumn` | Only valid if using headers. Name of column, in the data file, to filter routers by. In general one should use the field where the IP of the router is. **Default=ip**  |

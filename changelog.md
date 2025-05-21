@@ -1,4 +1,8 @@
 # Versions #
+## [8.3.1] - 2025-05-21
+- New parameter `-lt/--logTime`. To indicate the use of timestamp in `logfolder` created. 
+- `logsDirTimestamp` added to each json file per router as a new key `DateTime`.
+
 
 ## [8.3.0] - 2025-01-23
 
