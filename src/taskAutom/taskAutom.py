@@ -39,10 +39,10 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.3.1'
+LATEST_VERSION = '8.3.2'
 
 # Constants
-LIBS          = ['sshtunnel', 'netmiko', 'pandas', 'pyyaml', 'python-docx']
+LIBS          = ['sshtunnel', 'netmiko', 'pandas', 'pyyaml', 'python-docx', 'numpy']
 IP_LOCALHOST  = "127.0.0.1"
 LOG_GLOBAL    = []
 LOG_CONSOLE   = []
@@ -1806,8 +1806,11 @@ def createLogFolder(dictParam):
 
 	# Verify if logsDirectory exists. If so, ask for different name ...
 	if os.path.exists(dictParam['logsDirectory']):
-		print("Folder " + dictParam['logsDirectory'] + " already exists.\nUse a different folder name.\nQuitting ...")
-		quit()
+		if dictParam['logTime']:
+			print("Folder " + dictParam['logsDirectory'] + " already exists.\nUse a different folder name.\nQuitting ...")
+			quit()
+		else:
+			pass
 	else:
 		os.makedirs(dictParam['logsDirectory'])
 		open(dictParam['logsCsvFilename'],'w').close()
