@@ -1,4 +1,14 @@
 # Versions #
+## [8.3.2] - 2025-05-23
+- Updated check for existing log directory (now with `dictParam['logTime']`)
+- Update of libraries:
+    - `pandas==2.2.2`
+    - `numpy==1.26.4`
+
+## [8.3.1] - 2025-05-21
+- New parameter `-lt/--logTime`. To indicate the use of timestamp in `logfolder` created. 
+- `logsDirTimestamp` added to each json file per router as a new key `DateTime`.
+
 
 ## [8.3.0] - 2025-01-23
 

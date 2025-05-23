@@ -39,10 +39,10 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.3.0'
+LATEST_VERSION = '8.3.2'
 
 # Constants
-LIBS          = ['sshtunnel', 'netmiko', 'pandas', 'pyyaml', 'python-docx']
+LIBS          = ['sshtunnel', 'netmiko', 'pandas', 'pyyaml', 'python-docx', 'numpy']
 IP_LOCALHOST  = "127.0.0.1"
 LOG_GLOBAL    = []
 LOG_CONSOLE   = []
@@ -51,6 +51,7 @@ DICT_PARAM    = dict(
 	logsDirectory    = None,
 	logsCsvFilename  = None,
 	logInfo          = None,
+	logTime          = None,
 	logFileName      = None,
 	logsDirTimestamp = None,
 	pluginFilename   = None,
@@ -1593,6 +1594,7 @@ class myConnection():
 								outRxJson['ip']      = connInfo['systemIP']
 								outRxJson['version'] = connInfo['timos']
 								outRxJson['hwType']  = connInfo['hwType']
+								outRxJson['DateTime'] = logsDirTimestamp
 								json.dump(outRxJson,fj)
 								fj.close()
 								writeJson = 'yes'
@@ -1795,16 +1797,20 @@ def waitBetweenRouters(dictParam):
 def createLogFolder(dictParam):
 
 	dictParam['logsDirTimestamp'] = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-	if dictParam['outputJob'] in [0,2]:
-		dictParam['logsDirectory'] = os.getcwd() + "/logs_" + dictParam['logsDirTimestamp'] + "_" + dictParam['logInfo'] + "_" + dictParam['pluginFileAlone'] + "/"
-	else:
-		dictParam['logsDirectory'] = os.getcwd() + "/logs_" + dictParam['logsDirTimestamp'] + "_" + dictParam['logInfo'] + "_ftpUpload/"
+
+	dir_timestamp = f"{dictParam['logsDirTimestamp']}_" if dictParam['logTime'] else ""
+	dir_plugin = f"_{dictParam['pluginFileAlone']}" if dictParam['outputJob'] in [0, 2] else "ftpUpload"
+	
+	dictParam['logsDirectory'] = os.getcwd() + f"/logs_{dir_timestamp}{dictParam['logInfo']}{dir_plugin}/"
 	dictParam['logsCsvFilename'] = dictParam['logsDirectory'] + "00_log.csv"
 
 	# Verify if logsDirectory exists. If so, ask for different name ...
 	if os.path.exists(dictParam['logsDirectory']):
-		print("Folder " + dictParam['logsDirectory'] + " already exists.\nUse a different folder name.\nQuitting ...")
-		quit()
+		if dictParam['logTime']:
+			print("Folder " + dictParam['logsDirectory'] + " already exists.\nUse a different folder name.\nQuitting ...")
+			quit()
+		else:
+			pass
 	else:
 		os.makedirs(dictParam['logsDirectory'])
 		open(dictParam['logsCsvFilename'],'w').close()
@@ -1826,6 +1832,7 @@ def getDictParam():
 	groupData = parser.add_argument_group('Data Related')
 	groupData.add_argument('-d'  ,'--dataFile',        type=str, required=True, help='DATA File with parameters. Either CSV or XLSX. If XLSX, enable -xls option with sheet name.')
 	groupData.add_argument('-log','--logInfo' ,        type=str, required=True, help='Name of the log folder. Logs, MOP and scripts will be stored here.', )
+	groupData.add_argument('-lt', '--logTime',         type=str, help='Create the log folder with a timestamp in its name. Default=yes', default='yes', choices=['no', 'yes'])
 	groupData.add_argument('-fn','--logFileName' ,     type=str, help='Name of the log fileName, either "ip" or "hostname". Default=hostname', default='hostname', choices=['ip','hostname'] )
 	groupData.add_argument('-gc' ,'--dataGroupColumn', type=str, help='Only valid if using headers. Name of column, in the data file, to filter routers by. In general one should use the field where the IP of the router is. Default=ip', default='ip')
 	groupData.add_argument('-uh', '--useHeader',       type=str, help='When reading data, consider first row as header. Default=yes', default='yes', choices=['no','yes'])
@@ -1872,6 +1879,7 @@ def getDictParam():
 		password 		   = None,
 		progNumThreads	   = args.threads,
 		logInfo 		   = args.logInfo,
+		logTime            = True if args.logTime == 'yes' else False,
 		logFileName        = args.logFileName,
 		useSSHTunnel 	   = True if args.sshTunnel == 'yes' else False,
 		cronTime           = args.cronTime,
