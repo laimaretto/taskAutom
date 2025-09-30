@@ -1,4 +1,11 @@
 # Versions #
+
+## [8.4.3] - 2025-09-30
+- Added CLI parameter `authTimeout`. Default 10 seconds.
+- Update of libraries:
+    - `parmaiko==3.5.1`
+    - `netmiko==4.6.0`
+
 ## [8.3.2] - 2025-05-23
 - Updated check for existing log directory (now with `dictParam['logTime']`)
 - Update of libraries:
