@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='taskAutom',
-    version='8.3.2',
+    version='8.4.3',
     description='A simple task automation tool',
     long_description='A simple task automation tool for NOKIA SROS based routers',
     long_description_content_type='text/x-rst',
@@ -12,13 +12,14 @@ setup(
     license='BSD 3-clause',
     packages=['src/taskAutom'],
     install_requires=['sshtunnel==0.4.0',
-                      'netmiko==4.5.0',
+                      'netmiko==4.6.0',
                       'pandas==2.2.2',
                       'pyyaml==6.0.2',
                       'python-docx==0.8.11',
                       'numpy==1.26.4',
+                      'paramiko==3.5.1',
                       ],
-    python_requires='>=3.8',
+    python_requires='>=3.10',
     classifiers=[
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: BSD License",

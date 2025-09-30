@@ -39,7 +39,7 @@ from docx.enum.text import WD_LINE_SPACING
 from docx.shared import Pt
 
 
-LATEST_VERSION = '8.3.2'
+LATEST_VERSION = '8.4.3'
 
 # Constants
 LIBS          = ['sshtunnel', 'netmiko', 'pandas', 'pyyaml', 'python-docx', 'numpy']
@@ -75,6 +75,7 @@ DICT_PARAM    = dict(
 	dataGroupColumn  = 'ip',
 	version          = LATEST_VERSION,
 	xlsSheetName     = None,
+	authTimeout      = 10,
 )
 
 # - Parameters per vendor
@@ -220,6 +221,7 @@ def fncPrintResults(listOfRouters, timeTotalStart, dictParam):
 	
 	outTxt += f"  Total Threads:              {str(dictParam['progNumThreads'])}\n"
 	outTxt += f"  Read Timeout:               {str(dictParam['readTimeOut'])}s\n"
+	outTxt += f"  Auth Timeout:               {str(dictParam['authTimeout'])}s\n"
 	outTxt += f"  Time Between Routers:       {str(dictParam['timeBetweenRouters'])}ms\n"
 	outTxt += f"  Username:                   {str(dictParam['username'])}\n"
 	outTxt += f"  Password Filename:          {str(dictParam['passwordFile'])}\n"
@@ -976,7 +978,8 @@ class myConnection():
 			'outRxJson':{},
 			'cronScript':None,
 			'auxRetry':dictParam['auxRetry'],
-			'sshDebug':dictParam['sshDebug']
+			'sshDebug':dictParam['sshDebug'],
+			'authTimeout':dictParam['authTimeout']
 		}
 
 		self.connInfo.update(routerInfo)
@@ -1438,6 +1441,7 @@ class myConnection():
 
 		systemIP   = connInfo['systemIP']
 		deviceType = connInfo['deviceType']
+		authTimeout= connInfo['authTimeout']
 
 		# if we have a MD-CLI device, let's make sure netmiko
 		# does support it.
@@ -1458,9 +1462,9 @@ class myConnection():
 
 			if self.connInfo['sshDebug'] is True:
 				debug = self.logsDirectory + "debug.debug"
-				conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, log_file=debug, log_level="DEBUG",log_format='[%(levelname)s] %(name)s: [%(threadName)s] %(message)s')
+				conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, auth_timeout=authTimeout,log_file=debug, log_level="DEBUG",log_format='[%(levelname)s] %(name)s: [%(threadName)s] %(message)s')
 			else:
-				conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False)
+				conn2rtr = ConnLogOnly(device_type=deviceType, host=ip, port=port, username=tempUser, password=tempPass, fast_cli=False, auth_timeout=authTimeout)
 
 			if bool(conn2rtr) is True:
 				aluLogged    = True
@@ -1854,6 +1858,7 @@ def getDictParam():
 	connGroup.add_argument('-rto' ,'--readTimeOut',  type=int, help='Read Timeout. Time in seconds which to wait for data from router. Default=10', default=10,)
 	connGroup.add_argument('-tbr' ,'--timeBetweenRouters',  type=int, help='Time to wait between routers, in miliseconds (ms), before sending scripts to the router. Default=0', default=0,)
 	connGroup.add_argument('-axr' ,'--auxRetry',     type=int, help='Times to try obtaining aux values before "not-match". Default=10', default=10,)
+	connGroup.add_argument('-at' ,'--authTimeout',   type=int, help='Authentication timeout. Default=10', default=10,)
 
 
 	miscGroup = parser.add_argument_group('Misc')
@@ -1896,6 +1901,7 @@ def getDictParam():
 		readTimeOut        = args.readTimeOut,
 		timeBetweenRouters = args.timeBetweenRouters,
 		auxRetry           = args.auxRetry,
+		authTimeout        = args.authTimeout,
 	)
 
 	################
@@ -2045,7 +2051,6 @@ def fncRun(dictParam):
 	Returns:
 		[int]: 0
 	"""
-
 	listOfRouters = dictParam['listOfRouters']
 
 	# We take initial time 
@@ -2063,7 +2068,7 @@ def fncRun(dictParam):
 
 		# debug
 		enableLogging(dictParam)
-
+	
 		for i, IPconnect in enumerate(listOfRouters):
 
 			routerInfo = dictParam['inventory'][IPconnect]
